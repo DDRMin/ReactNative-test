@@ -1,20 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, View, Platform } from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
     useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    interpolate,
     useDerivedValue,
+    useSharedValue,
+    withSpring
 } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
-const TAB_BAR_WIDTH = width - 40; // Slightly wider for better spacing
+const TAB_BAR_WIDTH = width - 40;
 const TAB_COUNT = 4;
 const TAB_WIDTH = TAB_BAR_WIDTH / TAB_COUNT;
 const INDICATOR_WIDTH = 60;
@@ -38,9 +37,9 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
         translateX.value = withSpring(
             state.index * TAB_WIDTH + (TAB_WIDTH - INDICATOR_WIDTH) / 2,
             {
-                damping: 15,
-                stiffness: 120,
-                mass: 0.8,
+                damping: 18,
+                stiffness: 100,
+                mass: 0.9,
             }
         );
     }, [state.index]);
@@ -53,20 +52,20 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
 
     return (
         <View style={styles.container}>
-            <BlurView intensity={100} tint="dark" style={styles.blurContainer}>
-                {/* Background "Glass" Texture - darker layer for contrast */}
+            <BlurView intensity={80} tint="dark" style={styles.blurContainer}>
+                {/* Background "Glass" Texture - Liquid glass layer */}
                 <View style={styles.backgroundLayer} />
 
                 {/* Liquid Glass Sliding Indicator */}
                 <Animated.View style={[styles.indicatorContainer, indicatorStyle]}>
                     <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.05)']}
+                        colors={['rgba(34, 211, 238, 0.4)', 'rgba(8, 145, 178, 0.2)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.indicatorGradient}
                     >
-                         {/* Internal Gloss/Highlight */}
-                         <View style={styles.innerHighlight} />
+                        {/* Internal Gloss/Highlight - Liquid reflection */}
+                        <View style={styles.innerHighlight} />
                     </LinearGradient>
                 </Animated.View>
 
@@ -83,7 +82,7 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                                 canPreventDefault: true,
                             });
 
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
                             if (!isFocused && !event.defaultPrevented) {
                                 navigation.navigate(route.name);
@@ -100,7 +99,7 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                                 <Ionicons
                                     name={iconName}
                                     size={24}
-                                    color={isFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)'}
+                                    color={isFocused ? '#22d3ee' : 'rgba(103, 232, 249, 0.4)'}
                                     style={isFocused ? styles.activeIconShadow : undefined}
                                 />
                             </TouchableOpacity>
@@ -118,13 +117,13 @@ const styles = StyleSheet.create({
         bottom: 30,
         alignSelf: 'center',
         width: TAB_BAR_WIDTH,
-        shadowColor: '#000',
+        shadowColor: '#0891b2',
         shadowOffset: {
             width: 0,
-            height: 10,
+            height: 8,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
         elevation: 10,
     },
     blurContainer: {
@@ -132,31 +131,31 @@ const styles = StyleSheet.create({
         borderRadius: 35,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: 'rgba(34, 211, 238, 0.15)',
     },
     backgroundLayer: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(21, 26, 44, 0.9)', // Dusty, nearly opaque surface
+        backgroundColor: 'rgba(5, 8, 16, 0.85)',
     },
     indicatorContainer: {
         position: 'absolute',
-        top: 13, // (70 - 44) / 2
+        top: 13,
         left: 0,
         width: INDICATOR_WIDTH,
         height: INDICATOR_HEIGHT,
         borderRadius: 22,
-        // Subtler shadow for more realistic liquid effect
-        shadowColor: 'rgba(255, 255, 255, 0.2)',
+        // Cyan glow shadow for liquid effect
+        shadowColor: '#22d3ee',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 3,
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     indicatorGradient: {
         flex: 1,
         borderRadius: 22,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.4)',
+        borderColor: 'rgba(34, 211, 238, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -165,9 +164,9 @@ const styles = StyleSheet.create({
         top: 2,
         left: 2,
         right: 2,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)', // Subtle top shine
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: 'rgba(103, 232, 249, 0.2)',
     },
     tabsContainer: {
         flex: 1,
@@ -179,11 +178,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
-        zIndex: 10, // Ensure icons are above the indicator
+        zIndex: 10,
     },
     activeIconShadow: {
-        textShadowColor: 'rgba(255, 255, 255, 0.6)',
+        textShadowColor: 'rgba(34, 211, 238, 0.8)',
         textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 10,
+        textShadowRadius: 12,
     }
 });

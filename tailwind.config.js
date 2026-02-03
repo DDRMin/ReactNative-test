@@ -5,26 +5,33 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#0B0F1A',
-        primary: '#7C3AED',
-        accent: '#22D3EE',
-        surface: '#151A2C',
-        text: '#E5E7EB',
-        muted: '#94A3B8',
-        secondary: '#00C2FF', // Keeping for safety
-        light : {
-          100: '#F5F5F5',
-          200: '#E0E0E0',
-          300: '#C2C2C2',
+        // Liquid Glass Theme - Cyan/Teal Aesthetic
+        background: '#050810',
+        primary: '#0891b2',       // Cyan-600
+        accent: '#22d3ee',        // Cyan-400
+        surface: 'rgba(8, 145, 178, 0.1)', // Translucent cyan
+        text: '#e0f2fe',          // Cyan-100
+        muted: '#67e8f9',         // Cyan-300
+        secondary: '#06b6d4',     // Cyan-500
+        glass: {
+          100: 'rgba(34, 211, 238, 0.05)',
+          200: 'rgba(34, 211, 238, 0.1)',
+          300: 'rgba(34, 211, 238, 0.15)',
+          400: 'rgba(34, 211, 238, 0.2)',
+          500: 'rgba(34, 211, 238, 0.3)',
         },
-        dark : {
-          100: '#1A1A1A',
-          200: '#333333',
-          300: '#4D4D4D',
+        light: {
+          100: '#ecfeff',
+          200: '#cffafe',
+          300: '#a5f3fc',
+        },
+        dark: {
+          100: '#083344',
+          200: '#164e63',
+          300: '#155e75',
         },
       },
     },
   },
   plugins: [],
 }
-

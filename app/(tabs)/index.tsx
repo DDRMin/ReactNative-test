@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres, getMovieVideos, getMoviesByGenre } from '@/services/api';
-import { Movie, Genre, Video } from '@/types/movie';
 import AmbientBackground from '@/components/AmbientBackground';
-import HomeHeader from '@/components/HomeHeader';
-import MovieHero from '@/components/MovieHero';
-import MovieCard from '@/components/MovieCard';
 import ComingSoonCard from '@/components/ComingSoonCard';
 import GenreList from '@/components/GenreList';
+import HomeHeader from '@/components/HomeHeader';
+import MovieCard from '@/components/MovieCard';
+import MovieHero from '@/components/MovieHero';
+import { getGenres, getMovieVideos, getMoviesByGenre, getNowPlayingMovies, getTrendingMovies, getUpcomingMovies } from '@/services/api';
+import { Genre, Movie, Video } from '@/types/movie';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Index() {
     const router = useRouter();
@@ -34,19 +34,19 @@ export default function Index() {
                 getMoviesByGenre(27),
                 getMoviesByGenre(10752),
             ]);
-            
+
             const trendingMovies = trendingData.results;
             setTrending(trendingMovies);
             setNowPlaying(nowPlayingData.results);
             setUpcoming(upcomingData.results);
-            
+
             setGenreMovies({
                 28: actionData.results,
                 12: adventureData.results,
                 27: horrorData.results,
                 10752: warData.results
             });
-            
+
             const genreMap: Record<number, string> = {};
             genresData.genres.forEach((g: Genre) => genreMap[g.id] = g.name);
             setGenres(genreMap);
@@ -78,7 +78,7 @@ export default function Index() {
     if (loading) {
         return (
             <View className="flex-1 bg-background items-center justify-center">
-                 <AmbientBackground />
+                <AmbientBackground />
                 <ActivityIndicator size="large" color="#7C3AED" />
             </View>
         );
@@ -89,7 +89,7 @@ export default function Index() {
             <AmbientBackground />
             <SafeAreaView className="flex-1" edges={['top']} style={{ zIndex: 1 }}>
                 <HomeHeader />
-                <ScrollView 
+                <ScrollView
                     className="flex-1 px-4 pt-6"
                     contentContainerStyle={{ paddingBottom: 140 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
@@ -97,9 +97,9 @@ export default function Index() {
                 >
                     {/* Hero Section - Top Trending Movie */}
                     {trending.length > 0 && (
-                        <MovieHero 
-                            movie={trending[0]} 
-                            genres={genres} 
+                        <MovieHero
+                            movie={trending[0]}
+                            genres={genres}
                             trailerKey={heroTrailer}
                         />
                     )}
@@ -107,9 +107,9 @@ export default function Index() {
                     {/* Now Playing Carousel */}
                     <View className="mb-8">
                         <View className="flex-row items-center justify-between mb-4 px-2">
-                            <Text className="text-xl font-bold text-white tracking-tight">Now Playing</Text>
+                            <Text className="text-xl font-bold text-cyan-50 tracking-tight">Now Playing</Text>
                             <TouchableOpacity onPress={() => router.push('/movies/now-playing')}>
-                                <Text className="text-sm text-primary font-medium">See All</Text>
+                                <Text className="text-sm text-cyan-400 font-medium">See All</Text>
                             </TouchableOpacity>
                         </View>
                         <FlatList
@@ -131,7 +131,7 @@ export default function Index() {
                     {/* Coming Soon Carousel */}
                     <View className="mb-4">
                         <View className="flex-row items-center justify-between mb-4 px-2">
-                             <Text className="text-xl font-bold text-white tracking-tight">Coming Soon</Text>
+                            <Text className="text-xl font-bold text-cyan-50 tracking-tight">Coming Soon</Text>
                         </View>
                         <FlatList
                             data={upcoming}

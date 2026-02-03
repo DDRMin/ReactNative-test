@@ -1,22 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ImageBackground, Image, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import AmbientBackground from '@/components/AmbientBackground';
+import TrailerModal from '@/components/TrailerModal';
+import { useSavedMovies } from '@/contexts/SavedMoviesContext';
+import { getImageUrl, getMovieCredits, getMovieDetails, getMovieVideos } from '@/services/api';
+import { Cast, Movie, Video } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { getMovieDetails, getMovieCredits, getMovieVideos, getImageUrl } from '@/services/api';
-import { Movie, Cast, Video } from '@/types/movie';
-import TrailerModal from '@/components/TrailerModal';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const MovieDetails = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { saveMovie, removeMovie, isMovieSaved } = useSavedMovies();
     const [movie, setMovie] = useState<Movie | null>(null);
     const [cast, setCast] = useState<Cast[]>([]);
     const [trailer, setTrailer] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -30,7 +35,8 @@ const MovieDetails = () => {
                 ]);
                 setMovie(movieData);
                 setCast(creditsData.cast || []);
-                
+                setIsSaved(isMovieSaved(movieId));
+
                 const trailerVideo = videosData.results?.find((v: Video) => v.type === 'Trailer' && v.site === 'YouTube');
                 setTrailer(trailerVideo?.key || null);
             } catch (error) {
@@ -40,7 +46,21 @@ const MovieDetails = () => {
             }
         };
         fetchDetails();
-    }, [id]);
+    }, [id, isMovieSaved]);
+
+    const handleSaveToggle = async () => {
+        if (!movie) return;
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        if (isSaved) {
+            await removeMovie(movie.id);
+            setIsSaved(false);
+        } else {
+            await saveMovie(movie);
+            setIsSaved(true);
+        }
+    };
 
     const handleWatchTrailer = () => {
         if (trailer) {
@@ -52,16 +72,18 @@ const MovieDetails = () => {
 
     if (loading) {
         return (
-            <View className="flex-1 bg-background items-center justify-center">
-                <ActivityIndicator size="large" color="#7C3AED" />
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#050810' }}>
+                <AmbientBackground />
+                <ActivityIndicator size="large" color="#22d3ee" />
             </View>
         );
     }
 
     if (!movie) {
         return (
-            <View className="flex-1 bg-background items-center justify-center">
-                <Text className="text-white">Movie not found</Text>
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#050810' }}>
+                <AmbientBackground />
+                <Text className="text-cyan-50">Movie not found</Text>
             </View>
         );
     }
@@ -70,11 +92,12 @@ const MovieDetails = () => {
     const posterUrl = getImageUrl(movie.poster_path);
 
     return (
-        <View className="flex-1 bg-background">
-            <TrailerModal 
-                visible={modalVisible} 
-                videoId={trailer} 
-                onClose={() => setModalVisible(false)} 
+        <View className="flex-1" style={{ backgroundColor: '#050810' }}>
+            <AmbientBackground />
+            <TrailerModal
+                visible={modalVisible}
+                videoId={trailer}
+                onClose={() => setModalVisible(false)}
             />
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 {/* Header / Backdrop */}
@@ -83,17 +106,31 @@ const MovieDetails = () => {
                         source={{ uri: backdropUrl || posterUrl || '' }}
                         className="absolute inset-0 bg-center bg-cover"
                     >
-                         <LinearGradient
-                            colors={['transparent', '#0B0F1A']}
+                        <LinearGradient
+                            colors={['rgba(8, 145, 178, 0.1)', 'rgba(5, 8, 16, 0.6)', '#050810']}
                             style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '100%' }}
-                            locations={[0.2, 1]}
+                            locations={[0, 0.5, 1]}
                         />
-                         <SafeAreaView className="absolute top-0 left-0 w-full p-4" edges={['top']}>
-                            <TouchableOpacity 
+                        <SafeAreaView className="absolute top-0 left-0 w-full p-4 flex-row justify-between" edges={['top']}>
+                            <TouchableOpacity
                                 onPress={() => router.back()}
-                                className="w-10 h-10 rounded-full bg-black/30 items-center justify-center border border-white/10"
+                                style={styles.headerButton}
                             >
-                                <Ionicons name="arrow-back" size={24} color="white" />
+                                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                                <Ionicons name="arrow-back" size={24} color="#67e8f9" />
+                            </TouchableOpacity>
+
+                            {/* Save Button */}
+                            <TouchableOpacity
+                                onPress={handleSaveToggle}
+                                style={styles.headerButton}
+                            >
+                                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                                <Ionicons
+                                    name={isSaved ? "bookmark" : "bookmark-outline"}
+                                    size={24}
+                                    color={isSaved ? "#22d3ee" : "#67e8f9"}
+                                />
                             </TouchableOpacity>
                         </SafeAreaView>
                     </ImageBackground>
@@ -101,87 +138,129 @@ const MovieDetails = () => {
 
                 {/* Content */}
                 <View className="px-6 -mt-12">
-                     <View className="flex-row gap-4 mb-6">
-                         {/* Poster */}
-                        <Image 
+                    <View className="flex-row gap-4 mb-6">
+                        {/* Poster */}
+                        <Image
                             source={{ uri: posterUrl || '' }}
-                            className="w-32 aspect-[2/3] rounded-xl shadow-lg border border-white/10"
+                            className="w-32 aspect-[2/3] rounded-xl shadow-lg"
+                            style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}
                         />
                         {/* Info */}
                         <View className="flex-1 justify-end pb-2">
-                             <Text className="text-2xl font-bold text-white shadow-black shadow-md mb-1">{movie.title}</Text>
-                             {movie.tagline ? <Text className="text-gray-400 text-sm italic mb-2">{movie.tagline}</Text> : null}
-                             
-                             <View className="flex-row flex-wrap gap-2">
-                                 {movie.genres?.map(g => (
-                                     <BlurView key={g.id} intensity={10} tint="light" className="px-2 py-1 rounded-md overflow-hidden border border-white/10">
-                                         <Text className="text-xs text-gray-300">{g.name}</Text>
-                                     </BlurView>
-                                 ))}
-                             </View>
-                        </View>
-                     </View>
+                            <Text className="text-2xl font-bold text-cyan-50 mb-1">{movie.title}</Text>
+                            {movie.tagline ? <Text className="text-cyan-400/60 text-sm italic mb-2">{movie.tagline}</Text> : null}
 
-                     {/* Stats */}
-                     <View className="flex-row justify-between bg-surface p-4 rounded-xl mb-6 border border-white/5">
+                            <View className="flex-row flex-wrap gap-2">
+                                {movie.genres?.map(g => (
+                                    <BlurView key={g.id} intensity={20} tint="dark" className="px-2 py-1 rounded-md overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}>
+                                        <Text className="text-xs text-cyan-300">{g.name}</Text>
+                                    </BlurView>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Stats */}
+                    <BlurView intensity={30} tint="dark" className="flex-row justify-between p-4 rounded-xl mb-6 overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.15)' }}>
                         <View className="items-center">
                             <Ionicons name="star" size={20} color="#FACC15" />
-                            <Text className="text-white font-bold mt-1">{movie.vote_average?.toFixed(1)}<Text className="text-xs text-gray-400">/10</Text></Text>
-                        </View>
-                         <View className="items-center">
-                            <Ionicons name="time-outline" size={20} color="#94A3B8" />
-                            <Text className="text-white font-bold mt-1">{movie.runtime}m</Text>
+                            <Text className="text-cyan-50 font-bold mt-1">{movie.vote_average?.toFixed(1)}<Text className="text-xs text-cyan-400/50">/10</Text></Text>
                         </View>
                         <View className="items-center">
-                            <Ionicons name="calendar-outline" size={20} color="#94A3B8" />
-                            <Text className="text-white font-bold mt-1">{movie.release_date?.split('-')[0]}</Text>
+                            <Ionicons name="time-outline" size={20} color="#67e8f9" />
+                            <Text className="text-cyan-50 font-bold mt-1">{movie.runtime}m</Text>
                         </View>
-                     </View>
+                        <View className="items-center">
+                            <Ionicons name="calendar-outline" size={20} color="#67e8f9" />
+                            <Text className="text-cyan-50 font-bold mt-1">{movie.release_date?.split('-')[0]}</Text>
+                        </View>
+                    </BlurView>
 
-                     {/* Overview */}
-                     <Text className="text-xl font-bold text-white mb-2">Storyline</Text>
-                     <Text className="text-gray-400 leading-6 mb-8">{movie.overview}</Text>
+                    {/* Overview */}
+                    <Text className="text-xl font-bold text-cyan-50 mb-2">Storyline</Text>
+                    <Text className="text-cyan-300/70 leading-6 mb-8">{movie.overview}</Text>
 
-                     {/* Cast */}
-                     <Text className="text-xl font-bold text-white mb-4">Cast</Text>
-                     <FlatList
+                    {/* Cast */}
+                    <Text className="text-xl font-bold text-cyan-50 mb-4">Cast</Text>
+                    <FlatList
                         data={cast}
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={({ item }) => (
                             <View className="mr-4 w-20 items-center">
-                                <Image 
+                                <Image
                                     source={{ uri: getImageUrl(item.profile_path) || 'https://via.placeholder.com/100' }}
-                                    className="w-16 h-16 rounded-full bg-surface mb-2 border border-white/10"
+                                    className="w-16 h-16 rounded-full mb-2"
+                                    style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}
                                 />
-                                <Text className="text-white text-xs font-medium text-center" numberOfLines={2}>{item.name}</Text>
-                                <Text className="text-gray-500 text-[10px] text-center" numberOfLines={1}>{item.character}</Text>
+                                <Text className="text-cyan-50 text-xs font-medium text-center" numberOfLines={2}>{item.name}</Text>
+                                <Text className="text-cyan-400/40 text-[10px] text-center" numberOfLines={1}>{item.character}</Text>
                             </View>
                         )}
                         className="mb-8"
-                     />
-                     
-                     <TouchableOpacity 
-                         className="w-full rounded-2xl overflow-hidden mb-8"
-                         activeOpacity={0.8}
-                         onPress={handleWatchTrailer}
-                     >
-                         <LinearGradient
-                             colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
-                             start={{ x: 0, y: 0 }}
-                             end={{ x: 1, y: 1 }}
-                             className="py-4 px-6 flex-row items-center justify-center gap-3 shadow-md shadow-primary/20 border border-white/10"
-                         >
-                             <Ionicons name="play-circle" size={26} color="white" />
-                             <Text className="text-white font-bold text-lg tracking-wide">Watch Trailer</Text>
-                         </LinearGradient>
-                     </TouchableOpacity>
+                    />
+
+                    {/* Action Buttons */}
+                    <View className="flex-row gap-3 mb-8">
+                        <TouchableOpacity
+                            className="flex-1 rounded-2xl overflow-hidden"
+                            activeOpacity={0.8}
+                            onPress={handleWatchTrailer}
+                            style={{
+                                shadowColor: '#22d3ee',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 12,
+                            }}
+                        >
+                            <LinearGradient
+                                colors={['#0891b2', '#0e7490']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                className="py-4 px-6 flex-row items-center justify-center gap-3"
+                            >
+                                <Ionicons name="play-circle" size={26} color="#ecfeff" />
+                                <Text className="text-cyan-50 font-bold text-lg tracking-wide">Watch Trailer</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleSaveToggle}
+                            activeOpacity={0.8}
+                        >
+                            <BlurView
+                                intensity={40}
+                                tint="dark"
+                                className="w-14 h-14 rounded-2xl overflow-hidden items-center justify-center"
+                                style={{ borderWidth: 1, borderColor: isSaved ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.2)' }}
+                            >
+                                <Ionicons
+                                    name={isSaved ? "bookmark" : "bookmark-outline"}
+                                    size={26}
+                                    color={isSaved ? "#22d3ee" : "#67e8f9"}
+                                />
+                            </BlurView>
+                        </TouchableOpacity>
+                    </View>
 
                 </View>
             </ScrollView>
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    headerButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(34, 211, 238, 0.2)',
+    }
+});
 
 export default MovieDetails;
