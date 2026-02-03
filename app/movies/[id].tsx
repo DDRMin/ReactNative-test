@@ -98,6 +98,7 @@ const MovieDetails = () => {
                 visible={modalVisible}
                 videoId={trailer}
                 onClose={() => setModalVisible(false)}
+                movieTitle={movie.title}
             />
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 {/* Header / Backdrop */}
