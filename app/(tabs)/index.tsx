@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres } from '@/services/api';
-import { Movie, Genre } from '@/types/movie';
+import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres, getMovieVideos } from '@/services/api';
+import { Movie, Genre, Video } from '@/types/movie';
 import AmbientBackground from '@/components/AmbientBackground';
 import HomeHeader from '@/components/HomeHeader';
 import MovieHero from '@/components/MovieHero';
@@ -11,6 +11,7 @@ import ComingSoonCard from '@/components/ComingSoonCard';
 
 export default function Index() {
     const [trending, setTrending] = useState<Movie[]>([]);
+    const [heroTrailer, setHeroTrailer] = useState<string | null>(null);
     const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);
     const [upcoming, setUpcoming] = useState<Movie[]>([]);
     const [genres, setGenres] = useState<Record<number, string>>({});
@@ -25,13 +26,22 @@ export default function Index() {
                 getUpcomingMovies(),
                 getGenres()
             ]);
-            setTrending(trendingData.results);
+            
+            const trendingMovies = trendingData.results;
+            setTrending(trendingMovies);
             setNowPlaying(nowPlayingData.results);
             setUpcoming(upcomingData.results);
             
             const genreMap: Record<number, string> = {};
             genresData.genres.forEach((g: Genre) => genreMap[g.id] = g.name);
             setGenres(genreMap);
+
+            // Fetch trailer for the first trending movie (Hero)
+            if (trendingMovies.length > 0) {
+                const videosData = await getMovieVideos(trendingMovies[0].id);
+                const trailer = videosData.results?.find((v: Video) => v.type === 'Trailer' && v.site === 'YouTube');
+                setHeroTrailer(trailer?.key || null);
+            }
 
         } catch (error) {
             console.error(error);
@@ -71,7 +81,13 @@ export default function Index() {
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Hero Section - Top Trending Movie */}
-                    {trending.length > 0 && <MovieHero movie={trending[0]} genres={genres} />}
+                    {trending.length > 0 && (
+                        <MovieHero 
+                            movie={trending[0]} 
+                            genres={genres} 
+                            trailerKey={heroTrailer}
+                        />
+                    )}
 
                     {/* Now Playing Carousel */}
                     <View className="mb-8">
@@ -108,4 +124,5 @@ export default function Index() {
         </View>
     );
 }
+
 

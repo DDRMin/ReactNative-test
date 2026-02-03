@@ -53,7 +53,7 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
 
     return (
         <View style={styles.container}>
-            <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
+            <BlurView intensity={100} tint="dark" style={styles.blurContainer}>
                 {/* Background "Glass" Texture - darker layer for contrast */}
                 <View style={styles.backgroundLayer} />
 
@@ -83,8 +83,9 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                                 canPreventDefault: true,
                             });
 
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
                             if (!isFocused && !event.defaultPrevented) {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 navigation.navigate(route.name);
                             }
                         };
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     },
     backgroundLayer: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dark semi-transparent base
+        backgroundColor: 'rgba(21, 26, 44, 0.9)', // Dusty, nearly opaque surface
     },
     indicatorContainer: {
         position: 'absolute',
@@ -144,12 +145,12 @@ const styles = StyleSheet.create({
         width: INDICATOR_WIDTH,
         height: INDICATOR_HEIGHT,
         borderRadius: 22,
-        // Shadow for the floating liquid effect
-        shadowColor: 'rgba(255, 255, 255, 0.4)',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        // Subtler shadow for more realistic liquid effect
+        shadowColor: 'rgba(255, 255, 255, 0.2)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 3,
     },
     indicatorGradient: {
         flex: 1,

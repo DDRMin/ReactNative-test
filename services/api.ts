@@ -1,4 +1,4 @@
-import { MovieResponse } from "@/types/movie";
+import { MovieResponse, Movie, CreditsResponse, VideoResponse } from "@/types/movie";
 
 export const TMDB_CONFIG = {
   BASE_URL: 'https://api.themoviedb.org/3',
@@ -10,7 +10,7 @@ export const TMDB_CONFIG = {
   }
 };
 
-export const fetchMovies = async ({query} : {query: string}): Promise<MovieResponse> => {
+export const fetchFromApi = async <T>({query} : {query: string}): Promise<T> => {
     const endpoint = `${TMDB_CONFIG.BASE_URL}${query}`;
     try {
         const response = await fetch(endpoint, {
@@ -18,62 +18,40 @@ export const fetchMovies = async ({query} : {query: string}): Promise<MovieRespo
             headers: TMDB_CONFIG.headers,
         });
         if (!response.ok) {
-            throw new Error(`Error fetching movies: ${response.statusText}`);
+            throw new Error(`Error fetching data: ${response.statusText}`);
         }
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Fetch Movies Error:', error);
+        console.error('API Error:', error);
         throw error;
     }
 }
 
-export const getTrendingMovies = () => fetchMovies({ query: '/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc' });
-
-export const getNowPlayingMovies = () => fetchMovies({ query: '/movie/now_playing?language=en-US&page=1' });
-
-export const getUpcomingMovies = () => fetchMovies({ query: '/movie/upcoming?language=en-US&page=1' });
+export const getTrendingMovies = () => fetchFromApi<MovieResponse>({ query: '/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc' });
+export const getNowPlayingMovies = () => fetchFromApi<MovieResponse>({ query: '/movie/now_playing?language=en-US&page=1' });
+export const getUpcomingMovies = () => fetchFromApi<MovieResponse>({ query: '/movie/upcoming?language=en-US&page=1' });
 
 export const getGenres = async () => {
-
     const endpoint = `${TMDB_CONFIG.BASE_URL}/genre/movie/list?language=en-US`;
-
     try {
-
         const response = await fetch(endpoint, {
-
             method: 'GET',
-
             headers: TMDB_CONFIG.headers,
-
         });
-
         if (!response.ok) {
-
             throw new Error(`Error fetching genres: ${response.statusText}`);
-
         }
-
         const data = await response.json();
-
         return data;
-
     } catch (error) {
-
         console.error('Fetch Genres Error:', error);
-
         throw error;
-
     }
-
 };
 
-
-
-export const getMovieDetails = (id: number) => fetchMovies({ query: `/movie/${id}?language=en-US` });
-
-export const getMovieCredits = (id: number) => fetchMovies({ query: `/movie/${id}/credits?language=en-US` });
-
-
+export const getMovieDetails = (id: number) => fetchFromApi<Movie>({ query: `/movie/${id}?language=en-US` });
+export const getMovieCredits = (id: number) => fetchFromApi<CreditsResponse>({ query: `/movie/${id}/credits?language=en-US` });
+export const getMovieVideos = (id: number) => fetchFromApi<VideoResponse>({ query: `/movie/${id}/videos?language=en-US` });
 
 export const getImageUrl = (path: string) => path ? `${TMDB_CONFIG.IMAGE_BASE_URL}${path}` : null;

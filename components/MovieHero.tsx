@@ -1,24 +1,35 @@
 import React from 'react';
-import { View, Text, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Movie } from '@/types/movie';
 import { getImageUrl } from '@/services/api';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 
 interface MovieHeroProps {
     movie: Movie;
     genres?: Record<number, string>;
+    trailerKey?: string | null;
 }
 
-const MovieHero = ({ movie, genres }: MovieHeroProps) => {
+const MovieHero = ({ movie, genres, trailerKey }: MovieHeroProps) => {
     const router = useRouter();
     const imageUrl = getImageUrl(movie.poster_path);
     const genreNames = movie.genre_ids?.slice(0, 2).map(id => genres?.[id]).filter(Boolean).join(' • ');
 
     const handlePress = () => {
         router.push(`/movies/${movie.id}`);
+    };
+
+    const handleWatchTrailer = async () => {
+        if (trailerKey) {
+            await WebBrowser.openBrowserAsync(`https://www.youtube.com/watch?v=${trailerKey}`);
+        } else {
+            // If key not provided yet (fetching), fallback to details or alert
+            handlePress();
+        }
     };
 
     return (
@@ -43,7 +54,7 @@ const MovieHero = ({ movie, genres }: MovieHeroProps) => {
                         <Text className="text-xs font-bold uppercase tracking-wider text-accent drop-shadow-md">Trending #1</Text>
                      </BlurView>
 
-                    <Text className="text-4xl font-bold text-white leading-tight shadow-black shadow-lg" numberOfLines={2}>
+                    <Text className="text-4xl font-bold text-white leading-tight shadow-black shadow-md" numberOfLines={2}>
                         {movie.title}
                     </Text>
 
@@ -55,8 +66,8 @@ const MovieHero = ({ movie, genres }: MovieHeroProps) => {
 
                     <View className="flex-row items-center gap-3 w-full mt-2">
                         <TouchableOpacity 
-                            className="flex-1 h-12 bg-primary rounded-xl flex-row items-center justify-center gap-2 shadow-lg shadow-primary/50"
-                            onPress={handlePress}
+                            className="flex-1 h-12 bg-primary rounded-xl flex-row items-center justify-center gap-2 shadow-md shadow-primary/30"
+                            onPress={handleWatchTrailer}
                         >
                             <Ionicons name="play" size={20} color="white" />
                             <Text className="text-white font-bold text-base">Watch Trailer</Text>

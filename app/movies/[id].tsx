@@ -1,31 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ImageBackground, Image, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, ScrollView, ImageBackground, Image, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { getMovieDetails, getMovieCredits, getImageUrl } from '@/services/api';
-import { Movie, Cast } from '@/types/movie';
+import { getMovieDetails, getMovieCredits, getMovieVideos, getImageUrl } from '@/services/api';
+import { Movie, Cast, Video } from '@/types/movie';
+import TrailerModal from '@/components/TrailerModal';
 
 const MovieDetails = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [movie, setMovie] = useState<Movie | null>(null);
     const [cast, setCast] = useState<Cast[]>([]);
+    const [trailer, setTrailer] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
             if (!id) return;
             try {
                 const movieId = parseInt(Array.isArray(id) ? id[0] : id);
-                const [movieData, creditsData] = await Promise.all([
+                const [movieData, creditsData, videosData] = await Promise.all([
                     getMovieDetails(movieId),
-                    getMovieCredits(movieId)
+                    getMovieCredits(movieId),
+                    getMovieVideos(movieId)
                 ]);
                 setMovie(movieData);
                 setCast(creditsData.cast || []);
+                
+                const trailerVideo = videosData.results?.find((v: Video) => v.type === 'Trailer' && v.site === 'YouTube');
+                setTrailer(trailerVideo?.key || null);
             } catch (error) {
                 console.error("Error fetching details:", error);
             } finally {
@@ -34,6 +41,14 @@ const MovieDetails = () => {
         };
         fetchDetails();
     }, [id]);
+
+    const handleWatchTrailer = () => {
+        if (trailer) {
+            setModalVisible(true);
+        } else {
+            Alert.alert("Sorry", "No trailer available for this movie.");
+        }
+    };
 
     if (loading) {
         return (
@@ -56,6 +71,11 @@ const MovieDetails = () => {
 
     return (
         <View className="flex-1 bg-background">
+            <TrailerModal 
+                visible={modalVisible} 
+                videoId={trailer} 
+                onClose={() => setModalVisible(false)} 
+            />
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 {/* Header / Backdrop */}
                 <View className="relative w-full aspect-video">
@@ -142,9 +162,20 @@ const MovieDetails = () => {
                         className="mb-8"
                      />
                      
-                     <TouchableOpacity className="bg-primary w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 mb-8 shadow-lg shadow-primary/30">
-                         <Ionicons name="play-circle" size={24} color="white" />
-                         <Text className="text-white font-bold text-lg">Watch Now</Text>
+                     <TouchableOpacity 
+                         className="w-full rounded-2xl overflow-hidden mb-8"
+                         activeOpacity={0.8}
+                         onPress={handleWatchTrailer}
+                     >
+                         <LinearGradient
+                             colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+                             start={{ x: 0, y: 0 }}
+                             end={{ x: 1, y: 1 }}
+                             className="py-4 px-6 flex-row items-center justify-center gap-3 shadow-md shadow-primary/20 border border-white/10"
+                         >
+                             <Ionicons name="play-circle" size={26} color="white" />
+                             <Text className="text-white font-bold text-lg tracking-wide">Watch Trailer</Text>
+                         </LinearGradient>
                      </TouchableOpacity>
 
                 </View>
