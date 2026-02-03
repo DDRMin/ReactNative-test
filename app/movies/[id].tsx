@@ -123,13 +123,19 @@ const MovieDetails = () => {
                             {/* Save Button */}
                             <TouchableOpacity
                                 onPress={handleSaveToggle}
-                                style={styles.headerButton}
+                                style={[styles.headerButton, isSaved && styles.savedButton]}
                             >
                                 <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                                {isSaved && (
+                                    <LinearGradient
+                                        colors={['rgba(244, 63, 94, 0.3)', 'rgba(251, 113, 133, 0.1)']}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                )}
                                 <Ionicons
-                                    name={isSaved ? "bookmark" : "bookmark-outline"}
+                                    name={isSaved ? "heart" : "heart-outline"}
                                     size={24}
-                                    color={isSaved ? "#22d3ee" : "#67e8f9"}
+                                    color={isSaved ? "#fb7185" : "#67e8f9"}
                                 />
                             </TouchableOpacity>
                         </SafeAreaView>
@@ -228,19 +234,33 @@ const MovieDetails = () => {
                         <TouchableOpacity
                             onPress={handleSaveToggle}
                             activeOpacity={0.8}
+                            style={{
+                                shadowColor: isSaved ? '#f43f5e' : 'transparent',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: isSaved ? 0.4 : 0,
+                                shadowRadius: 12,
+                            }}
                         >
-                            <BlurView
-                                intensity={40}
-                                tint="dark"
+                            <View
                                 className="w-14 h-14 rounded-2xl overflow-hidden items-center justify-center"
-                                style={{ borderWidth: 1, borderColor: isSaved ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.2)' }}
+                                style={{ borderWidth: 1.5, borderColor: isSaved ? '#fb7185' : 'rgba(34, 211, 238, 0.2)' }}
                             >
+                                {isSaved ? (
+                                    <LinearGradient
+                                        colors={['#f43f5e', '#e11d48']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                ) : (
+                                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                                )}
                                 <Ionicons
-                                    name={isSaved ? "bookmark" : "bookmark-outline"}
+                                    name={isSaved ? "heart" : "heart-outline"}
                                     size={26}
-                                    color={isSaved ? "#22d3ee" : "#67e8f9"}
+                                    color={isSaved ? "#fff" : "#67e8f9"}
                                 />
-                            </BlurView>
+                            </View>
                         </TouchableOpacity>
                     </View>
 
@@ -260,7 +280,10 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(34, 211, 238, 0.2)',
-    }
+    },
+    savedButton: {
+        borderColor: 'rgba(251, 113, 133, 0.5)',
+    },
 });
 
 export default MovieDetails;
