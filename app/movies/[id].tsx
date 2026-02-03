@@ -107,9 +107,9 @@ const MovieDetails = () => {
                         className="absolute inset-0 bg-center bg-cover"
                     >
                         <LinearGradient
-                            colors={['rgba(8, 145, 178, 0.1)', 'rgba(5, 8, 16, 0.6)', '#050810']}
+                            colors={['transparent', 'rgba(5, 8, 16, 0.3)', 'rgba(5, 8, 16, 0.85)']}
                             style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '100%' }}
-                            locations={[0, 0.5, 1]}
+                            locations={[0, 0.6, 1]}
                         />
                         <SafeAreaView className="absolute top-0 left-0 w-full p-4 flex-row justify-between" edges={['top']}>
                             <TouchableOpacity
