@@ -29,7 +29,7 @@ export const fetchFromApi = async <T>({query} : {query: string}): Promise<T> => 
 }
 
 export const getTrendingMovies = () => fetchFromApi<MovieResponse>({ query: '/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc' });
-export const getNowPlayingMovies = () => fetchFromApi<MovieResponse>({ query: '/movie/now_playing?language=en-US&page=1' });
+export const getNowPlayingMovies = (page: number = 1) => fetchFromApi<MovieResponse>({ query: `/movie/now_playing?language=en-US&page=${page}` });
 export const getUpcomingMovies = () => fetchFromApi<MovieResponse>({ query: '/movie/upcoming?language=en-US&page=1' });
 
 export const getGenres = async () => {

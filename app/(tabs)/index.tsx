@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres, getMovieVideos, getMoviesByGenre } from '@/services/api';
 import { Movie, Genre, Video } from '@/types/movie';
 import AmbientBackground from '@/components/AmbientBackground';
@@ -11,6 +12,7 @@ import ComingSoonCard from '@/components/ComingSoonCard';
 import GenreList from '@/components/GenreList';
 
 export default function Index() {
+    const router = useRouter();
     const [trending, setTrending] = useState<Movie[]>([]);
     const [heroTrailer, setHeroTrailer] = useState<string | null>(null);
     const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);
@@ -106,7 +108,9 @@ export default function Index() {
                     <View className="mb-8">
                         <View className="flex-row items-center justify-between mb-4 px-2">
                             <Text className="text-xl font-bold text-white tracking-tight">Now Playing</Text>
-                            <Text className="text-sm text-primary font-medium">See All</Text>
+                            <TouchableOpacity onPress={() => router.push('/movies/now-playing')}>
+                                <Text className="text-sm text-primary font-medium">See All</Text>
+                            </TouchableOpacity>
                         </View>
                         <FlatList
                             data={nowPlaying}
