@@ -70,9 +70,9 @@ export default function Index() {
     }
 
     return (
-        <View className="flex-1 bg-background">
+        <View className="flex-1">
             <AmbientBackground />
-            <SafeAreaView className="flex-1" edges={['top']}>
+            <SafeAreaView className="flex-1" edges={['top']} style={{ zIndex: 1 }}>
                 <HomeHeader />
                 <ScrollView 
                     className="flex-1 px-4 pt-6"
