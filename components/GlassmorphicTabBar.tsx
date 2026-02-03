@@ -7,7 +7,6 @@ import React, { useEffect } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
     useAnimatedStyle,
-    useDerivedValue,
     useSharedValue,
     withSpring
 } from 'react-native-reanimated';
@@ -21,16 +20,40 @@ const INDICATOR_HEIGHT = 44;
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const tabIcons: Record<string, IconName> = {
-    index: 'home',
-    search: 'search',
-    saved: 'bookmark',
-    profile: 'person',
+// Tab configuration with icons and accent colors
+const tabConfig: Record<string, { icon: IconName; activeColor: string; glowColor: string }> = {
+    index: {
+        icon: 'home',
+        activeColor: '#22d3ee',
+        glowColor: 'rgba(34, 211, 238, 0.8)'
+    },
+    search: {
+        icon: 'search',
+        activeColor: '#a78bfa',
+        glowColor: 'rgba(167, 139, 250, 0.8)'
+    },
+    saved: {
+        icon: 'heart',
+        activeColor: '#fb7185',
+        glowColor: 'rgba(251, 113, 133, 0.8)'
+    },
+    profile: {
+        icon: 'person',
+        activeColor: '#4ade80',
+        glowColor: 'rgba(74, 222, 128, 0.8)'
+    },
+};
+
+// Indicator gradient colors per tab
+const indicatorGradients: Record<string, [string, string]> = {
+    index: ['rgba(34, 211, 238, 0.4)', 'rgba(8, 145, 178, 0.2)'],
+    search: ['rgba(167, 139, 250, 0.4)', 'rgba(139, 92, 246, 0.2)'],
+    saved: ['rgba(251, 113, 133, 0.4)', 'rgba(244, 63, 94, 0.2)'],
+    profile: ['rgba(74, 222, 128, 0.4)', 'rgba(34, 197, 94, 0.2)'],
 };
 
 export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarProps) {
     const translateX = useSharedValue(0);
-    const activeIndex = useDerivedValue(() => state.index);
 
     useEffect(() => {
         // Fluid spring physics for "liquid" feel
@@ -50,6 +73,10 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
         };
     });
 
+    const currentRoute = state.routes[state.index]?.name || 'index';
+    const currentGradient = indicatorGradients[currentRoute] || indicatorGradients.index;
+    const currentGlow = tabConfig[currentRoute]?.activeColor || '#22d3ee';
+
     return (
         <View style={styles.container}>
             <BlurView intensity={80} tint="dark" style={styles.blurContainer}>
@@ -57,15 +84,19 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                 <View style={styles.backgroundLayer} />
 
                 {/* Liquid Glass Sliding Indicator */}
-                <Animated.View style={[styles.indicatorContainer, indicatorStyle]}>
+                <Animated.View style={[
+                    styles.indicatorContainer,
+                    indicatorStyle,
+                    { shadowColor: currentGlow }
+                ]}>
                     <LinearGradient
-                        colors={['rgba(34, 211, 238, 0.4)', 'rgba(8, 145, 178, 0.2)']}
+                        colors={currentGradient}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={styles.indicatorGradient}
+                        style={[styles.indicatorGradient, { borderColor: `${currentGlow}80` }]}
                     >
                         {/* Internal Gloss/Highlight - Liquid reflection */}
-                        <View style={styles.innerHighlight} />
+                        <View style={[styles.innerHighlight, { backgroundColor: `${currentGlow}30` }]} />
                     </LinearGradient>
                 </Animated.View>
 
@@ -73,7 +104,7 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                 <View style={styles.tabsContainer}>
                     {state.routes.map((route, index) => {
                         const isFocused = state.index === index;
-                        const iconName = tabIcons[route.name] || 'ellipse';
+                        const config = tabConfig[route.name] || { icon: 'ellipse', activeColor: '#22d3ee', glowColor: 'rgba(34, 211, 238, 0.8)' };
 
                         const onPress = () => {
                             const event = navigation.emit({
@@ -97,10 +128,14 @@ export default function GlassmorphicTabBar({ state, navigation }: BottomTabBarPr
                                 activeOpacity={0.7}
                             >
                                 <Ionicons
-                                    name={iconName}
+                                    name={config.icon}
                                     size={24}
-                                    color={isFocused ? '#22d3ee' : 'rgba(103, 232, 249, 0.4)'}
-                                    style={isFocused ? styles.activeIconShadow : undefined}
+                                    color={isFocused ? config.activeColor : 'rgba(148, 163, 184, 0.5)'}
+                                    style={isFocused ? {
+                                        textShadowColor: config.glowColor,
+                                        textShadowOffset: { width: 0, height: 0 },
+                                        textShadowRadius: 12,
+                                    } : undefined}
                                 />
                             </TouchableOpacity>
                         );
@@ -144,18 +179,16 @@ const styles = StyleSheet.create({
         width: INDICATOR_WIDTH,
         height: INDICATOR_HEIGHT,
         borderRadius: 22,
-        // Cyan glow shadow for liquid effect
-        shadowColor: '#22d3ee',
+        // Dynamic glow shadow
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
         elevation: 5,
     },
     indicatorGradient: {
         flex: 1,
         borderRadius: 22,
         borderWidth: 1,
-        borderColor: 'rgba(34, 211, 238, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -166,7 +199,6 @@ const styles = StyleSheet.create({
         right: 2,
         height: 18,
         borderRadius: 9,
-        backgroundColor: 'rgba(103, 232, 249, 0.2)',
     },
     tabsContainer: {
         flex: 1,
@@ -180,9 +212,4 @@ const styles = StyleSheet.create({
         height: '100%',
         zIndex: 10,
     },
-    activeIconShadow: {
-        textShadowColor: 'rgba(34, 211, 238, 0.8)',
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 12,
-    }
 });
