@@ -53,5 +53,6 @@ export const getGenres = async () => {
 export const getMovieDetails = (id: number) => fetchFromApi<Movie>({ query: `/movie/${id}?language=en-US` });
 export const getMovieCredits = (id: number) => fetchFromApi<CreditsResponse>({ query: `/movie/${id}/credits?language=en-US` });
 export const getMovieVideos = (id: number) => fetchFromApi<VideoResponse>({ query: `/movie/${id}/videos?language=en-US` });
+export const getMoviesByGenre = (genreId: number, page: number = 1) => fetchFromApi<MovieResponse>({ query: `/discover/movie?with_genres=${genreId}&language=en-US&page=${page}&sort_by=popularity.desc` });
 
 export const getImageUrl = (path: string) => path ? `${TMDB_CONFIG.IMAGE_BASE_URL}${path}` : null;

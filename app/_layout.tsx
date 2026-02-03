@@ -16,6 +16,10 @@ export default function RootLayout() {
 		  name="movies/[id]"
 		  options={{ title: "Movie Details" , headerShown: false}}
 		/>
+		<Stack.Screen
+		  name="genre/[id]"
+		  options={{ headerShown: false }}
+		/>
       </Stack>
     </SafeAreaProvider>
   );

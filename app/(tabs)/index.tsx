@@ -1,36 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres, getMovieVideos } from '@/services/api';
+import { getTrendingMovies, getNowPlayingMovies, getUpcomingMovies, getGenres, getMovieVideos, getMoviesByGenre } from '@/services/api';
 import { Movie, Genre, Video } from '@/types/movie';
 import AmbientBackground from '@/components/AmbientBackground';
 import HomeHeader from '@/components/HomeHeader';
 import MovieHero from '@/components/MovieHero';
 import MovieCard from '@/components/MovieCard';
 import ComingSoonCard from '@/components/ComingSoonCard';
+import GenreList from '@/components/GenreList';
 
 export default function Index() {
     const [trending, setTrending] = useState<Movie[]>([]);
     const [heroTrailer, setHeroTrailer] = useState<string | null>(null);
     const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);
     const [upcoming, setUpcoming] = useState<Movie[]>([]);
+    const [genreMovies, setGenreMovies] = useState<Record<number, Movie[]>>({});
     const [genres, setGenres] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const loadData = async () => {
         try {
-            const [trendingData, nowPlayingData, upcomingData, genresData] = await Promise.all([
+            const [trendingData, nowPlayingData, upcomingData, genresData, actionData, adventureData, horrorData, warData] = await Promise.all([
                 getTrendingMovies(),
                 getNowPlayingMovies(),
                 getUpcomingMovies(),
-                getGenres()
+                getGenres(),
+                getMoviesByGenre(28),
+                getMoviesByGenre(12),
+                getMoviesByGenre(27),
+                getMoviesByGenre(10752),
             ]);
             
             const trendingMovies = trendingData.results;
             setTrending(trendingMovies);
             setNowPlaying(nowPlayingData.results);
             setUpcoming(upcomingData.results);
+            
+            setGenreMovies({
+                28: actionData.results,
+                12: adventureData.results,
+                27: horrorData.results,
+                10752: warData.results
+            });
             
             const genreMap: Record<number, string> = {};
             genresData.genres.forEach((g: Genre) => genreMap[g.id] = g.name);
@@ -105,6 +118,12 @@ export default function Index() {
                         />
                     </View>
 
+                    {/* Genre Lists */}
+                    {genreMovies[28] && <GenreList title="Action" genreId={28} movies={genreMovies[28]} genres={genres} />}
+                    {genreMovies[12] && <GenreList title="Adventure" genreId={12} movies={genreMovies[12]} genres={genres} />}
+                    {genreMovies[27] && <GenreList title="Horror" genreId={27} movies={genreMovies[27]} genres={genres} />}
+                    {genreMovies[10752] && <GenreList title="War" genreId={10752} movies={genreMovies[10752]} genres={genres} />}
+
                     {/* Coming Soon Carousel */}
                     <View className="mb-4">
                         <View className="flex-row items-center justify-between mb-4 px-2">
@@ -124,5 +143,6 @@ export default function Index() {
         </View>
     );
 }
+
 
 
