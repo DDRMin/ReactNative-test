@@ -1,26 +1,36 @@
 import AmbientBackground from '@/components/AmbientBackground';
 import MovieCard from '@/components/MovieCard';
+import { MovieCardSkeleton } from '@/components/ShimmerPlaceholder';
 import { getGenres, getPopularMovies, searchMovies } from '@/services/api';
+import { AnimationConfig, Colors } from '@/theme/constants';
 import { Genre, Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   FlatList,
   Keyboard,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
-// Purple accent for Search tab (#a78bfa)
-const ACCENT_COLOR = '#a78bfa';
+const ACCENT_COLOR = Colors.accent.violet;
 const ACCENT_LIGHT = 'rgba(167, 139, 250, 0.4)';
 const ACCENT_DIM = 'rgba(167, 139, 250, 0.15)';
 
@@ -30,8 +40,37 @@ export default function Search() {
   const [genres, setGenres] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Load genres and popular movies on mount
+  // Animation values
+  const searchBarGlow = useSharedValue(0);
+  const emptyIconScale = useSharedValue(1);
+  const headerOpacity = useSharedValue(0);
+  const headerY = useSharedValue(-20);
+
+  useEffect(() => {
+    // Header entrance
+    headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
+    headerY.value = withSpring(0, AnimationConfig.spring.gentle);
+
+    // Empty state icon pulse
+    emptyIconScale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  useEffect(() => {
+    searchBarGlow.value = withTiming(isFocused ? 1 : 0, {
+      duration: AnimationConfig.duration.fast
+    });
+  }, [isFocused]);
+
+  // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -67,7 +106,6 @@ export default function Search() {
           setLoading(false);
         }
       } else if (query.trim().length === 0) {
-        // Reset to popular movies
         setLoading(true);
         try {
           const popularData = await getPopularMovies();
@@ -88,105 +126,96 @@ export default function Search() {
     Keyboard.dismiss();
   };
 
-  const renderMovie = useCallback(({ item }: { item: Movie }) => (
+  const renderMovie = useCallback(({ item, index }: { item: Movie; index: number }) => (
     <View style={{ width: CARD_WIDTH, marginBottom: 16 }}>
-      <MovieCard movie={item} width={CARD_WIDTH} genres={genres} />
+      <MovieCard movie={item} width={CARD_WIDTH} genres={genres} index={index} />
     </View>
   ), [genres]);
 
+  const searchBarStyle = useAnimatedStyle(() => ({
+    borderColor: isFocused ? ACCENT_LIGHT : ACCENT_DIM,
+    shadowOpacity: searchBarGlow.value * 0.3,
+  }));
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerY.value }],
+  }));
+
+  const emptyIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: emptyIconScale.value }],
+  }));
+
   if (initialLoading) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#050810' }}>
+      <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
         <AmbientBackground />
-        <ActivityIndicator size="large" color={ACCENT_COLOR} />
+        <SafeAreaView className="flex-1" edges={['top']}>
+          <View className="px-5 pt-4 pb-4">
+            <View className="flex-row gap-4 mb-4">
+              {[1, 2].map((i) => (
+                <View key={i} style={{ width: CARD_WIDTH }}>
+                  <MovieCardSkeleton width={CARD_WIDTH} />
+                </View>
+              ))}
+            </View>
+          </View>
+        </SafeAreaView>
       </View>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#050810' }}>
+    <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
       <AmbientBackground />
       <SafeAreaView className="flex-1" edges={['top']}>
         {/* Header */}
-        <View className="px-5 pt-4 pb-2">
+        <Animated.View style={[styles.header, headerStyle]}>
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-2xl font-bold text-cyan-50">Discover</Text>
-            <View
-              className="px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: 'rgba(167, 139, 250, 0.15)' }}
-            >
-              <Text style={{ color: ACCENT_COLOR }} className="text-xs font-semibold">
-                {movies.length} movies
-              </Text>
+            <Text style={styles.headerTitle}>Discover</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{movies.length} movies</Text>
             </View>
           </View>
 
-          {/* Search Input with Purple Accent */}
-          <View
-            className="flex-row items-center rounded-2xl overflow-hidden px-4 h-14"
-            style={{
-              backgroundColor: 'rgba(167, 139, 250, 0.08)',
-              borderWidth: 1.5,
-              borderColor: query ? ACCENT_LIGHT : ACCENT_DIM,
-            }}
-          >
+          {/* Premium Search Input */}
+          <Animated.View style={[styles.searchContainer, searchBarStyle]}>
             <Ionicons name="search" size={20} color={ACCENT_COLOR} />
             <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder="Search movies, actors..."
               placeholderTextColor="rgba(167, 139, 250, 0.4)"
-              className="flex-1 ml-3 text-cyan-50 text-base"
+              style={styles.searchInput}
               selectionColor={ACCENT_COLOR}
               returnKeyType="search"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
             />
             {query.length > 0 && (
-              <TouchableOpacity onPress={clearSearch}>
-                <View
-                  className="w-6 h-6 rounded-full items-center justify-center"
-                  style={{ backgroundColor: 'rgba(167, 139, 250, 0.2)' }}
-                >
-                  <Ionicons name="close" size={14} color={ACCENT_COLOR} />
-                </View>
+              <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                <Ionicons name="close" size={14} color={ACCENT_COLOR} />
               </TouchableOpacity>
             )}
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
 
-        {/* Quick Filter Pills */}
-        <View className="px-5 py-3 flex-row gap-2">
-          <TouchableOpacity
-            className="px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(167, 139, 250, 0.2)' }}
-          >
-            <Text style={{ color: ACCENT_COLOR }} className="text-sm font-medium">All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}
-          >
-            <Text style={{ color: '#4ade80' }} className="text-sm font-medium">Top Rated</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(251, 113, 133, 0.1)' }}
-          >
-            <Text style={{ color: '#fb7185' }} className="text-sm font-medium">New</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(250, 204, 21, 0.1)' }}
-          >
-            <Text style={{ color: '#facc15' }} className="text-sm font-medium">Popular</Text>
-          </TouchableOpacity>
+        {/* Filter Pills */}
+        <View style={styles.filterContainer}>
+          <FilterPill label="All" color={ACCENT_COLOR} active />
+          <FilterPill label="Top Rated" color={Colors.accent.emerald} />
+          <FilterPill label="New" color={Colors.accent.rose} />
+          <FilterPill label="Popular" color={Colors.star} />
         </View>
 
         {/* Section Title */}
-        <View className="px-5 py-2 flex-row items-center justify-between">
-          <Text className="text-lg font-semibold text-cyan-100">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
             {query ? 'Search Results' : 'Popular Movies'}
           </Text>
-          {loading && <ActivityIndicator size="small" color={ACCENT_COLOR} />}
+          {loading && (
+            <View style={styles.loadingDot} />
+          )}
         </View>
 
         {/* Results Grid */}
@@ -201,18 +230,155 @@ export default function Search() {
             showsVerticalScrollIndicator={false}
           />
         ) : (
-          <View className="flex-1 items-center justify-center" style={{ paddingBottom: 100 }}>
-            <View
-              className="w-24 h-24 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: 'rgba(167, 139, 250, 0.1)' }}
-            >
+          <View style={styles.emptyContainer}>
+            <Animated.View style={[styles.emptyIconContainer, emptyIconStyle]}>
               <Ionicons name="film-outline" size={48} color="rgba(167, 139, 250, 0.5)" />
-            </View>
-            <Text className="text-cyan-50 text-lg font-semibold">No movies found</Text>
-            <Text className="text-cyan-400/40 text-sm mt-1">Try a different search term</Text>
+            </Animated.View>
+            <Text style={styles.emptyTitle}>No movies found</Text>
+            <Text style={styles.emptySubtitle}>Try a different search term</Text>
           </View>
         )}
       </SafeAreaView>
     </View>
   );
 }
+
+// Filter Pill Component
+const FilterPill = ({ label, color, active = false }: { label: string; color: string; active?: boolean }) => {
+  const scale = useSharedValue(1);
+
+  const onPressIn = () => {
+    scale.value = withSpring(0.95, AnimationConfig.spring.snappy);
+  };
+
+  const onPressOut = () => {
+    scale.value = withSpring(1, AnimationConfig.spring.snappy);
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <TouchableOpacity onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={0.8}>
+      <Animated.View
+        style={[
+          styles.filterPill,
+          { backgroundColor: `${color}${active ? '30' : '15'}` },
+          animatedStyle,
+        ]}
+      >
+        <Text style={[styles.filterText, { color }]}>{label}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.text.primary,
+  },
+  countBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: ACCENT_DIM,
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: ACCENT_COLOR,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 56,
+    backgroundColor: 'rgba(167, 139, 250, 0.08)',
+    borderWidth: 1.5,
+    shadowColor: ACCENT_COLOR,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: Colors.text.primary,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(167, 139, 250, 0.2)',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ACCENT_COLOR,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 100,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.text.dimmed,
+    marginTop: 4,
+  },
+});

@@ -1,16 +1,24 @@
 import AmbientBackground from '@/components/AmbientBackground';
 import { useSavedMovies } from '@/contexts/SavedMoviesContext';
+import { AnimationConfig, Colors } from '@/theme/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { Image, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-// Green accent for Profile tab (#4ade80)
-const ACCENT_COLOR = '#4ade80';
-const ACCENT_SECONDARY = '#22d3ee';
+const ACCENT_COLOR = Colors.accent.emerald;
 
 interface SettingItemProps {
   icon: IconName;
@@ -22,6 +30,7 @@ interface SettingItemProps {
   onPress?: () => void;
   iconColor?: string;
   iconBgColor?: string;
+  delay?: number;
 }
 
 const SettingItem = ({
@@ -33,66 +42,133 @@ const SettingItem = ({
   onToggle,
   onPress,
   iconColor = ACCENT_COLOR,
-  iconBgColor = 'rgba(74, 222, 128, 0.1)'
-}: SettingItemProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    activeOpacity={isToggle ? 1 : 0.7}
-    className="flex-row items-center py-4 px-1"
-  >
-    <View
-      className="w-10 h-10 rounded-xl items-center justify-center mr-4"
-      style={{ backgroundColor: iconBgColor }}
-    >
-      <Ionicons name={icon} size={20} color={iconColor} />
-    </View>
-    <View className="flex-1">
-      <Text className="text-cyan-50 font-medium text-base">{title}</Text>
-      {subtitle && <Text className="text-cyan-400/50 text-sm mt-0.5">{subtitle}</Text>}
-    </View>
-    {isToggle ? (
-      <Switch
-        value={toggleValue}
-        onValueChange={onToggle}
-        trackColor={{ false: 'rgba(74, 222, 128, 0.2)', true: '#22c55e' }}
-        thumbColor={toggleValue ? ACCENT_COLOR : '#86efac'}
-      />
-    ) : (
-      <Ionicons name="chevron-forward" size={20} color="rgba(74, 222, 128, 0.4)" />
-    )}
-  </TouchableOpacity>
-);
+  iconBgColor = 'rgba(74, 222, 128, 0.1)',
+  delay = 0,
+}: SettingItemProps) => {
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(-20);
 
+  useEffect(() => {
+    opacity.value = withDelay(delay, withTiming(1, { duration: AnimationConfig.duration.normal }));
+    translateX.value = withDelay(delay, withSpring(0, AnimationConfig.spring.gentle));
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={isToggle ? 1 : 0.7}
+    >
+      <Animated.View style={[styles.settingItem, animatedStyle]}>
+        <View style={[styles.settingIcon, { backgroundColor: iconBgColor }]}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <View style={styles.settingContent}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+        </View>
+        {isToggle ? (
+          <Switch
+            value={toggleValue}
+            onValueChange={onToggle}
+            trackColor={{ false: 'rgba(74, 222, 128, 0.2)', true: '#22c55e' }}
+            thumbColor={toggleValue ? ACCENT_COLOR : '#86efac'}
+          />
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color="rgba(74, 222, 128, 0.4)" />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// Animated Stat Card with count-up animation
 interface StatCardProps {
   icon: IconName;
-  value: string | number;
+  value: number;
   label: string;
   color: string;
   bgColor: string;
+  delay?: number;
 }
 
-const StatCard = ({ icon, value, label, color, bgColor }: StatCardProps) => (
-  <View
-    className="flex-1 p-4 rounded-2xl items-center"
-    style={{
-      backgroundColor: bgColor,
-      borderWidth: 1,
-      borderColor: `${color}30`
-    }}
-  >
-    <Ionicons name={icon} size={24} color={color} />
-    <Text className="text-2xl font-bold text-cyan-50 mt-2">{value}</Text>
-    <Text style={{ color: `${color}99` }} className="text-sm mt-1">{label}</Text>
-  </View>
-);
+const StatCard = ({ icon, value, label, color, bgColor, delay = 0 }: StatCardProps) => {
+  const displayValue = useSharedValue(0);
+  const scale = useSharedValue(0.8);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    // Entrance animation
+    opacity.value = withDelay(delay, withTiming(1, { duration: AnimationConfig.duration.normal }));
+    scale.value = withDelay(delay, withSpring(1, AnimationConfig.spring.bouncy));
+
+    // Count-up animation
+    displayValue.value = withDelay(
+      delay + 200,
+      withTiming(value, { duration: 1200, easing: Easing.out(Easing.cubic) })
+    );
+  }, [value]);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: 1,
+  }));
+
+  return (
+    <Animated.View style={[styles.statCard, { backgroundColor: bgColor, borderColor: `${color}30` }, containerStyle]}>
+      <Ionicons name={icon} size={24} color={color} />
+      <Animated.Text style={[styles.statValue, textStyle]}>
+        {Math.round(displayValue.value)}
+      </Animated.Text>
+      <Text style={[styles.statLabel, { color: `${color}99` }]}>{label}</Text>
+    </Animated.View>
+  );
+};
 
 export default function Profile() {
   const { savedMovies } = useSavedMovies();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
 
+  // Animation values
+  const headerOpacity = useSharedValue(0);
+  const profileScale = useSharedValue(0.9);
+  const avatarRing = useSharedValue(0);
+
+  useEffect(() => {
+    headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
+    profileScale.value = withSpring(1, AnimationConfig.spring.gentle);
+
+    // Rotating avatar ring
+    avatarRing.value = withRepeat(
+      withTiming(360, { duration: 10000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+  }));
+
+  const profileStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: profileScale.value }],
+  }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${avatarRing.value}deg` }],
+  }));
+
   return (
-    <View className="flex-1" style={{ backgroundColor: '#050810' }}>
+    <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
       <AmbientBackground />
       <SafeAreaView className="flex-1" edges={['top']}>
         <ScrollView
@@ -101,104 +177,90 @@ export default function Profile() {
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
-            <Text className="text-2xl font-bold text-cyan-50">Profile</Text>
-            <TouchableOpacity
-              className="w-10 h-10 rounded-full items-center justify-center"
-              style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}
-            >
+          <Animated.View style={[styles.header, headerStyle]}>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <TouchableOpacity style={styles.settingsButton}>
               <Ionicons name="settings-outline" size={22} color={ACCENT_COLOR} />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
-          {/* Profile Card with Green Accent */}
-          <View className="px-5 mt-4">
-            <View
-              className="p-6 rounded-3xl overflow-hidden"
-              style={{
-                backgroundColor: 'rgba(74, 222, 128, 0.05)',
-                borderWidth: 1,
-                borderColor: 'rgba(74, 222, 128, 0.2)'
-              }}
-            >
-              <View className="flex-row items-center">
-                <View className="relative">
-                  <Image
-                    source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdKTYziTXf2mT_tNq2fZ7kBw87eo8-EXSdU6sWEBBxzAV3VOZgIbZv1GcoGH1J-GuFfSEeTvWnut1cjajsuqrnQHGv3KjEsmYKVDJRBuUzguA1xpjQE7sprva_oY3EM0GWhoxU5bvYF5cwxwVo6Qr2Qfap_PEMqnl0pVP_oJxL4QZhTzo3O853K82EjAGEm5YcGmNcG_EioIv3zeoZyHdfMi3LVoser3iDO9ReNnnyAJxV9Sa19qIDiqi4XFWYH8wmNgEFC0MFC0Q' }}
-                    className="w-20 h-20 rounded-full"
-                    style={{ borderWidth: 3, borderColor: 'rgba(74, 222, 128, 0.5)' }}
-                  />
-                  <LinearGradient
-                    colors={['#4ade80', '#22c55e']}
-                    className="absolute bottom-0 right-0 w-7 h-7 rounded-full items-center justify-center"
-                    style={{ borderWidth: 2, borderColor: '#050810' }}
-                  >
-                    <Ionicons name="checkmark" size={14} color="#fff" />
-                  </LinearGradient>
-                </View>
-                <View className="ml-4 flex-1">
-                  <Text className="text-xl font-bold text-cyan-50">Alex Morgan</Text>
-                  <Text className="text-cyan-400/60 mt-1">alex.morgan@email.com</Text>
-                  <View className="flex-row items-center mt-2 gap-2">
-                    <LinearGradient
-                      colors={['#4ade80', '#22c55e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      className="px-3 py-1 rounded-full"
-                    >
-                      <Text className="text-white text-xs font-semibold">Premium</Text>
-                    </LinearGradient>
-                    <View
-                      className="px-2 py-1 rounded-full"
-                      style={{ backgroundColor: 'rgba(250, 204, 21, 0.15)' }}
-                    >
-                      <Text style={{ color: '#facc15' }} className="text-xs font-medium">⭐ Level 12</Text>
-                    </View>
-                  </View>
+          {/* Profile Card */}
+          <Animated.View style={[styles.profileCard, profileStyle]}>
+            <View style={styles.avatarContainer}>
+              <Animated.View style={[styles.avatarRing, ringStyle]}>
+                <LinearGradient
+                  colors={[ACCENT_COLOR, Colors.primary[400], ACCENT_COLOR]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+              <Image
+                source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdKTYziTXf2mT_tNq2fZ7kBw87eo8-EXSdU6sWEBBxzAV3VOZgIbZv1GcoGH1J-GuFfSEeTvWnut1cjajsuqrnQHGv3KjEsmYKVDJRBuUzguA1xpjQE7sprva_oY3EM0GWhoxU5bvYF5cwxwVo6Qr2Qfap_PEMqnl0pVP_oJxL4QZhTzo3O853K82EjAGEm5YcGmNcG_EioIv3zeoZyHdfMi3LVoser3iDO9ReNnnyAJxV9Sa19qIDiqi4XFWYH8wmNgEFC0MFC0Q' }}
+                style={styles.avatar}
+              />
+              <View style={styles.verifiedBadge}>
+                <LinearGradient
+                  colors={[ACCENT_COLOR, '#22c55e']}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Ionicons name="checkmark" size={14} color="#fff" />
+              </View>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>Alex Morgan</Text>
+              <Text style={styles.profileEmail}>alex.morgan@email.com</Text>
+              <View style={styles.badgeRow}>
+                <LinearGradient
+                  colors={[ACCENT_COLOR, '#22c55e']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.premiumBadge}
+                >
+                  <Text style={styles.premiumText}>Premium</Text>
+                </LinearGradient>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>⭐ Level 12</Text>
                 </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Stats with Different Colors */}
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-cyan-100 mb-4">Your Activity</Text>
-            <View className="flex-row gap-3">
+          {/* Stats with Animated Counters */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Activity</Text>
+            <View style={styles.statsRow}>
               <StatCard
                 icon="heart"
                 value={savedMovies.length}
                 label="Favorites"
-                color="#fb7185"
+                color={Colors.accent.rose}
                 bgColor="rgba(251, 113, 133, 0.08)"
+                delay={200}
               />
               <StatCard
                 icon="eye"
                 value={47}
                 label="Watched"
-                color="#a78bfa"
+                color={Colors.accent.violet}
                 bgColor="rgba(167, 139, 250, 0.08)"
+                delay={300}
               />
               <StatCard
                 icon="star"
                 value={23}
                 label="Rated"
-                color="#facc15"
+                color={Colors.star}
                 bgColor="rgba(250, 204, 21, 0.08)"
+                delay={400}
               />
             </View>
           </View>
 
-          {/* Settings Sections with Varied Colors */}
-          <View className="px-5 mt-8">
-            <Text className="text-lg font-semibold text-cyan-100 mb-4">Preferences</Text>
-            <View
-              className="rounded-2xl overflow-hidden px-4"
-              style={{
-                backgroundColor: 'rgba(74, 222, 128, 0.03)',
-                borderWidth: 1,
-                borderColor: 'rgba(74, 222, 128, 0.15)'
-              }}
-            >
+          {/* Preferences */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
+            <View style={styles.settingsCard}>
               <SettingItem
                 icon="notifications-outline"
                 title="Notifications"
@@ -206,10 +268,11 @@ export default function Profile() {
                 isToggle
                 toggleValue={notificationsEnabled}
                 onToggle={setNotificationsEnabled}
-                iconColor="#facc15"
+                iconColor={Colors.star}
                 iconBgColor="rgba(250, 204, 21, 0.1)"
+                delay={500}
               />
-              <View className="h-px bg-green-400/10" />
+              <View style={styles.divider} />
               <SettingItem
                 icon="moon-outline"
                 title="Dark Mode"
@@ -217,74 +280,277 @@ export default function Profile() {
                 isToggle
                 toggleValue={darkModeEnabled}
                 onToggle={setDarkModeEnabled}
-                iconColor="#a78bfa"
+                iconColor={Colors.accent.violet}
                 iconBgColor="rgba(167, 139, 250, 0.1)"
+                delay={550}
               />
             </View>
           </View>
 
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-cyan-100 mb-4">Account</Text>
-            <View
-              className="rounded-2xl overflow-hidden px-4"
-              style={{
-                backgroundColor: 'rgba(34, 211, 238, 0.03)',
-                borderWidth: 1,
-                borderColor: 'rgba(34, 211, 238, 0.15)'
-              }}
-            >
+          {/* Account */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <View style={styles.settingsCard}>
               <SettingItem
                 icon="person-outline"
                 title="Edit Profile"
                 onPress={() => { }}
-                iconColor="#22d3ee"
+                iconColor={Colors.primary[400]}
                 iconBgColor="rgba(34, 211, 238, 0.1)"
+                delay={600}
               />
-              <View className="h-px bg-cyan-400/10" />
+              <View style={styles.divider} />
               <SettingItem
                 icon="lock-closed-outline"
                 title="Privacy & Security"
                 onPress={() => { }}
-                iconColor="#4ade80"
+                iconColor={ACCENT_COLOR}
                 iconBgColor="rgba(74, 222, 128, 0.1)"
+                delay={650}
               />
-              <View className="h-px bg-cyan-400/10" />
+              <View style={styles.divider} />
               <SettingItem
                 icon="help-circle-outline"
                 title="Help & Support"
                 onPress={() => { }}
-                iconColor="#a78bfa"
+                iconColor={Colors.accent.violet}
                 iconBgColor="rgba(167, 139, 250, 0.1)"
+                delay={700}
               />
             </View>
           </View>
 
-          <View className="px-5 mt-6">
-            <TouchableOpacity
-              className="flex-row items-center py-4 px-5 rounded-2xl"
-              style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                borderWidth: 1,
-                borderColor: 'rgba(239, 68, 68, 0.2)'
-              }}
-            >
-              <View
-                className="w-10 h-10 rounded-xl items-center justify-center mr-4"
-                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
-              >
-                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+          {/* Sign Out */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.signOutButton} activeOpacity={0.8}>
+              <View style={styles.signOutIcon}>
+                <Ionicons name="log-out-outline" size={20} color={Colors.accent.rose} />
               </View>
-              <Text className="text-red-400 font-medium text-base">Sign Out</Text>
+              <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
 
           {/* App Info */}
-          <View className="items-center mt-8 px-5">
-            <Text className="text-cyan-400/30 text-sm">CineVerse v1.0.0</Text>
-            <Text className="text-cyan-400/20 text-xs mt-1">Made with ❤️ using TMDB API</Text>
+          <View style={styles.appInfo}>
+            <Text style={styles.appVersion}>CineVerse v1.0.0</Text>
+            <Text style={styles.appCredits}>Made with ❤️ using TMDB API</Text>
           </View>
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.text.primary,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+  },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor: 'rgba(74, 222, 128, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.2)',
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRing: {
+    position: 'absolute',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+  },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 3,
+    borderColor: Colors.background.primary,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.background.primary,
+    overflow: 'hidden',
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: Colors.text.muted,
+    marginTop: 4,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  premiumBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  premiumText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  levelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(250, 204, 21, 0.15)',
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.star,
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginBottom: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text.primary,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  settingsCard: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(74, 222, 128, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.15)',
+    paddingHorizontal: 16,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  settingSubtitle: {
+    fontSize: 13,
+    color: Colors.text.dimmed,
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  signOutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    marginRight: 14,
+  },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.accent.rose,
+  },
+  appInfo: {
+    alignItems: 'center',
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  appVersion: {
+    fontSize: 13,
+    color: Colors.text.dimmed,
+  },
+  appCredits: {
+    fontSize: 12,
+    color: 'rgba(103, 232, 249, 0.3)',
+    marginTop: 4,
+  },
+});
