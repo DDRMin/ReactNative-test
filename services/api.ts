@@ -37,8 +37,8 @@ export const getPopularMovies = (page: number = 1) => fetchFromApi<MovieResponse
 export const getTopRatedMovies = (page: number = 1) => fetchFromApi<MovieResponse>({ query: `/movie/top_rated?language=en-US&page=${page}` });
 
 // Search
-export const searchMovies = (query: string, page: number = 1) =>
-    fetchFromApi<MovieResponse>({ query: `/search/movie?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=${page}` });
+export const searchMovies = (query: string, page: number = 1, includeAdult: boolean = false) =>
+    fetchFromApi<MovieResponse>({ query: `/search/movie?query=${encodeURIComponent(query)}&include_adult=${includeAdult}&language=en-US&page=${page}` });
 
 // Genres
 export const getGenres = async () => {

@@ -38,12 +38,14 @@ export default function Search() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
+  const [includeAdult, setIncludeAdult] = useState(false);
 
   // Animation values
   const searchBarGlow = useSharedValue(0);
   const emptyIconScale = useSharedValue(1);
   const headerOpacity = useSharedValue(0);
   const headerY = useSharedValue(-20);
+  const adultToggleScale = useSharedValue(1);
 
   useEffect(() => {
     // Header entrance
@@ -82,13 +84,13 @@ export default function Search() {
     loadInitialData();
   }, []);
 
-  // Debounced search
+  // Debounced search - triggers on query or includeAdult change
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (query.trim().length > 0) {
         setLoading(true);
         try {
-          const results = await searchMovies(query);
+          const results = await searchMovies(query, 1, includeAdult);
           setMovies(results.results);
         } catch (error) {
           console.error('Search error:', error);
@@ -109,7 +111,18 @@ export default function Search() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, includeAdult]);
+
+  const toggleAdult = () => {
+    adultToggleScale.value = withSpring(0.9, AnimationConfig.spring.snappy, () => {
+      adultToggleScale.value = withSpring(1, AnimationConfig.spring.snappy);
+    });
+    setIncludeAdult(!includeAdult);
+  };
+
+  const adultToggleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: adultToggleScale.value }],
+  }));
 
   const clearSearch = () => {
     setQuery('');
@@ -169,25 +182,45 @@ export default function Search() {
           </View>
 
           {/* Premium Search Input */}
-          <Animated.View style={[styles.searchContainer, searchBarStyle]}>
-            <Ionicons name="search" size={20} color={ACCENT_COLOR} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search movies, actors..."
-              placeholderTextColor="rgba(167, 139, 250, 0.4)"
-              style={styles.searchInput}
-              selectionColor={ACCENT_COLOR}
-              returnKeyType="search"
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-                <Ionicons name="close" size={14} color={ACCENT_COLOR} />
-              </TouchableOpacity>
-            )}
-          </Animated.View>
+          <View style={styles.searchRow}>
+            <Animated.View style={[styles.searchContainer, searchBarStyle, { flex: 1 }]}>
+              <Ionicons name="search" size={20} color={ACCENT_COLOR} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search movies, actors..."
+                placeholderTextColor="rgba(167, 139, 250, 0.4)"
+                style={styles.searchInput}
+                selectionColor={ACCENT_COLOR}
+                returnKeyType="search"
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                  <Ionicons name="close" size={14} color={ACCENT_COLOR} />
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+
+            {/* Adult Content Toggle */}
+            <TouchableOpacity onPress={toggleAdult} activeOpacity={0.8}>
+              <Animated.View
+                style={[
+                  styles.adultToggle,
+                  includeAdult && styles.adultToggleActive,
+                  adultToggleStyle
+                ]}
+              >
+                <Text style={[styles.adultToggleText, includeAdult && styles.adultToggleTextActive]}>
+                  18+
+                </Text>
+                <View style={[styles.toggleIndicator, includeAdult && styles.toggleIndicatorActive]}>
+                  <View style={[styles.toggleDot, includeAdult && styles.toggleDotActive]} />
+                </View>
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Filter Pills */}
@@ -370,5 +403,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text.dimmed,
     marginTop: 4,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adultToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    height: 56,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(167, 139, 250, 0.2)',
+  },
+  adultToggleActive: {
+    backgroundColor: 'rgba(251, 113, 133, 0.15)',
+    borderColor: 'rgba(251, 113, 133, 0.4)',
+  },
+  adultToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(167, 139, 250, 0.6)',
+  },
+  adultToggleTextActive: {
+    color: Colors.accent.rose,
+  },
+  toggleIndicator: {
+    width: 32,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(167, 139, 250, 0.2)',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleIndicatorActive: {
+    backgroundColor: 'rgba(251, 113, 133, 0.3)',
+  },
+  toggleDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(167, 139, 250, 0.5)',
+    alignSelf: 'flex-start',
+  },
+  toggleDotActive: {
+    backgroundColor: Colors.accent.rose,
+    alignSelf: 'flex-end',
   },
 });
