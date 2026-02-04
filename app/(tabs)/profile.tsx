@@ -140,15 +140,10 @@ export default function Profile() {
   // Animation values
   const headerOpacity = useSharedValue(0);
   const profileScale = useSharedValue(0.9);
-  const avatarRing = useSharedValue(0);
 
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     profileScale.value = withSpring(1, AnimationConfig.spring.gentle);
-
-    // Static avatar ring - removed infinite rotation for performance
-    // One-time subtle rotation on mount instead
-    avatarRing.value = withTiming(15, { duration: 2000, easing: Easing.out(Easing.ease) });
   }, []);
 
   const headerStyle = useAnimatedStyle(() => ({
@@ -157,10 +152,6 @@ export default function Profile() {
 
   const profileStyle = useAnimatedStyle(() => ({
     transform: [{ scale: profileScale.value }],
-  }));
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${avatarRing.value}deg` }],
   }));
 
   return (
@@ -183,14 +174,6 @@ export default function Profile() {
           {/* Profile Card */}
           <Animated.View style={[styles.profileCard, profileStyle]}>
             <View style={styles.avatarContainer}>
-              <Animated.View style={[styles.avatarRing, ringStyle]}>
-                <LinearGradient
-                  colors={[ACCENT_COLOR, Colors.primary[400], ACCENT_COLOR]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
               <Image
                 source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdKTYziTXf2mT_tNq2fZ7kBw87eo8-EXSdU6sWEBBxzAV3VOZgIbZv1GcoGH1J-GuFfSEeTvWnut1cjajsuqrnQHGv3KjEsmYKVDJRBuUzguA1xpjQE7sprva_oY3EM0GWhoxU5bvYF5cwxwVo6Qr2Qfap_PEMqnl0pVP_oJxL4QZhTzo3O853K82EjAGEm5YcGmNcG_EioIv3zeoZyHdfMi3LVoser3iDO9ReNnnyAJxV9Sa19qIDiqi4XFWYH8wmNgEFC0MFC0Q' }}
                 style={styles.avatar}
@@ -376,12 +359,6 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarRing: {
-    position: 'absolute',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
   },
   avatar: {
     width: 76,

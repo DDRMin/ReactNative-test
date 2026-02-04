@@ -33,7 +33,7 @@ jobs:
             echo "Only JS changes detected. Triggering OTA Update."
           fi
 
-  # JOB 2: FAST PATH (OTA UPDATE)
+  # JOB 2: OTA UPDATE (for JS-only changes)
   update:
     needs: check_changes
     if: needs.check_changes.outputs.should_build == 'false'
@@ -60,10 +60,10 @@ jobs:
       - name: Publish OTA Update
         run: eas update --branch qa --message "${{ github.event.head_commit.message }}"
 
-  # JOB 3: LOCAL APK BUILD (with Gradle caching)
+  # JOB 3: LOCAL APK BUILD - ALWAYS RUNS (after OTA or for native changes)
   build_local:
-    needs: check_changes
-    if: needs.check_changes.outputs.should_build == 'true'
+    needs: [check_changes, update]
+    if: always() && needs.check_changes.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repo
@@ -125,3 +125,30 @@ jobs:
           name: qa-app-build
           path: ./app-qa.apk
           retention-days: 5
+
+  # JOB 4: EAS CLOUD BUILD (only for native changes, runs after local build)
+  build_eas:
+    needs: [check_changes, build_local]
+    if: needs.check_changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-version: latest
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: ☁️ Build on EAS Cloud
+        run: eas build --platform android --profile qa --non-interactive

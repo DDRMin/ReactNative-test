@@ -10,9 +10,12 @@ import { GenreAccents } from '@/theme/constants';
 import { Genre, Movie, Video } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Limit movies per section for performance (TMDB returns 20, we only need 10)
+const MOVIES_PER_SECTION = 10;
 
 export default function Index() {
     const router = useRouter();
@@ -38,16 +41,17 @@ export default function Index() {
                 getMoviesByGenre(10752),
             ]);
 
-            const trendingMovies = trendingData.results;
+            const trendingMovies = trendingData.results.slice(0, MOVIES_PER_SECTION);
             setTrending(trendingMovies);
-            setNowPlaying(nowPlayingData.results);
-            setUpcoming(upcomingData.results);
+            setNowPlaying(nowPlayingData.results.slice(0, MOVIES_PER_SECTION));
+            setUpcoming(upcomingData.results.slice(0, MOVIES_PER_SECTION));
 
+            // Limit genre movies to improve render performance
             setGenreMovies({
-                28: actionData.results,
-                12: adventureData.results,
-                27: horrorData.results,
-                10752: warData.results
+                28: actionData.results.slice(0, MOVIES_PER_SECTION),
+                12: adventureData.results.slice(0, MOVIES_PER_SECTION),
+                27: horrorData.results.slice(0, MOVIES_PER_SECTION),
+                10752: warData.results.slice(0, MOVIES_PER_SECTION)
             });
 
             const genreMap: Record<number, string> = {};
@@ -73,10 +77,21 @@ export default function Index() {
         loadData();
     }, []);
 
-    const onRefresh = () => {
+    const onRefresh = useCallback(() => {
         setRefreshing(true);
         loadData();
-    };
+    }, []);
+
+    // Memoized render functions for FlatList optimization
+    const renderMovieCard = useCallback(({ item, index }: { item: Movie; index: number }) => (
+        <MovieCard movie={item} genres={genres} index={index} />
+    ), [genres]);
+
+    const renderComingSoonCard = useCallback(({ item }: { item: Movie }) => (
+        <ComingSoonCard movie={item} genres={genres} />
+    ), [genres]);
+
+    const keyExtractor = useCallback((item: Movie) => item.id.toString(), []);
 
     // Loading state with premium skeletons
     if (loading) {
@@ -110,6 +125,7 @@ export default function Index() {
                     contentContainerStyle={{ paddingBottom: 140 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22d3ee" />}
                     showsVerticalScrollIndicator={false}
+                    removeClippedSubviews={true}
                 >
                     {/* Hero Section */}
                     {trending.length > 0 && (
@@ -128,17 +144,18 @@ export default function Index() {
                             iconColor="#22d3ee"
                             iconBgColor="rgba(34, 211, 238, 0.15)"
                             onSeeAll={() => router.push('/movies/now-playing')}
-                            animationDelay={100}
                         />
                         <FlatList
                             data={nowPlaying}
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item, index }) => (
-                                <MovieCard movie={item} genres={genres} index={index} />
-                            )}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderMovieCard}
                             contentContainerStyle={{ paddingHorizontal: 8 }}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={5}
+                            windowSize={5}
+                            initialNumToRender={4}
                         />
                     </View>
 
@@ -150,7 +167,6 @@ export default function Index() {
                             movies={genreMovies[28]}
                             genres={genres}
                             router={router}
-                            animationDelay={200}
                         />
                     )}
 
@@ -161,7 +177,6 @@ export default function Index() {
                             movies={genreMovies[12]}
                             genres={genres}
                             router={router}
-                            animationDelay={300}
                         />
                     )}
 
@@ -172,7 +187,6 @@ export default function Index() {
                             movies={genreMovies[27]}
                             genres={genres}
                             router={router}
-                            animationDelay={400}
                         />
                     )}
 
@@ -183,7 +197,6 @@ export default function Index() {
                             movies={genreMovies[10752]}
                             genres={genres}
                             router={router}
-                            animationDelay={500}
                         />
                     )}
 
@@ -195,15 +208,18 @@ export default function Index() {
                             iconColor="#4ade80"
                             iconBgColor="rgba(74, 222, 128, 0.15)"
                             showSeeAll={false}
-                            animationDelay={600}
                         />
                         <FlatList
                             data={upcoming}
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => <ComingSoonCard movie={item} genres={genres} />}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderComingSoonCard}
                             contentContainerStyle={{ paddingHorizontal: 8 }}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={4}
+                            windowSize={5}
+                            initialNumToRender={3}
                         />
                     </View>
                 </ScrollView>
@@ -212,18 +228,23 @@ export default function Index() {
     );
 }
 
-// Genre Section Component
+// Optimized Genre Section Component
 interface GenreSectionProps {
     title: string;
     genreId: number;
     movies: Movie[];
     genres: Record<number, string>;
     router: ReturnType<typeof useRouter>;
-    animationDelay?: number;
 }
 
-const GenreSection = ({ title, genreId, movies, genres, router, animationDelay = 0 }: GenreSectionProps) => {
+const GenreSection = React.memo(({ title, genreId, movies, genres, router }: GenreSectionProps) => {
     const accent = GenreAccents[genreId] || { color: '#22d3ee', bgColor: 'rgba(34, 211, 238, 0.15)', icon: 'film' };
+
+    const renderItem = useCallback(({ item, index }: { item: Movie; index: number }) => (
+        <MovieCard movie={item} genres={genres} index={index} />
+    ), [genres]);
+
+    const keyExtractor = useCallback((item: Movie) => item.id.toString(), []);
 
     return (
         <View className="mb-10">
@@ -234,18 +255,20 @@ const GenreSection = ({ title, genreId, movies, genres, router, animationDelay =
                 iconBgColor={accent.bgColor}
                 seeAllColor={accent.color}
                 onSeeAll={() => router.push({ pathname: '/genre/[id]', params: { id: genreId, name: title } })}
-                animationDelay={animationDelay}
             />
             <FlatList
                 data={movies}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item, index }) => (
-                    <MovieCard movie={item} genres={genres} index={index} />
-                )}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
                 contentContainerStyle={{ paddingHorizontal: 8 }}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                initialNumToRender={4}
             />
         </View>
     );
-};
+});
+
