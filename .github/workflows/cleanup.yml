@@ -1,0 +1,24 @@
+name: 🧹 Cleanup Old Builds
+
+on:
+  # Run automatically every Sunday at midnight (UTC)
+  schedule:
+    - cron: '0 0 * * 0'
+  # Allow manual trigger if storage gets full
+  workflow_dispatch:
+
+jobs:
+  delete_runs:
+    name: Delete Old Workflow Runs
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: 🧹 Delete workflow runs older than 7 days
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 7
+          keep_minimum_runs: 5
