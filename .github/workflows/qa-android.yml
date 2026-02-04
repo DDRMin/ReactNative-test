@@ -60,29 +60,68 @@ jobs:
       - name: Publish OTA Update
         run: eas update --branch qa --message "${{ github.event.head_commit.message }}"
 
-  # JOB 3: SLOW PATH (FULL BUILD)
-  build:
+  # JOB 3: LOCAL APK BUILD (with Gradle caching)
+  build_local:
     needs: check_changes
     if: needs.check_changes.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Setup repo
+      - name: 🏗 Setup repo
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('package-lock.json', 'android/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 📱 Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Android/Sdk
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('android/build.gradle') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: npm
 
-      - name: Setup EAS
+      - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
-          token: ${{ secrets.EXPO_TOKEN }}
           eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm ci
 
-      - name: Create QA Build
-        run: eas build --platform android --profile qa --non-interactive
+      - name: 🚀 Build APK Locally
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+        run: |
+          eas build --platform android \
+            --profile qa \
+            --local \
+            --non-interactive \
+            --output=./app-qa.apk
+
+      - name: 📤 Upload APK to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-app-build
+          path: ./app-qa.apk
+          retention-days: 5
