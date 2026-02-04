@@ -1,37 +1,88 @@
-name: QA Android Build
+name: Smart QA Pipeline
 
 on:
   push:
     branches:
-      - dev  # 1. TRIGGER: Only runs when code is pushed to 'dev'
+      - dev
 
 jobs:
-  build:
-    name: Build APK
+  # JOB 1: DECIDE WHICH PATH TO TAKE
+  check_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Important to check previous commit
+
+      - name: Check for Native Changes
+        id: check
+        run: |
+          # Define files that REQUIRE a full native build
+          # If these change, we cannot do OTA. We must rebuild.
+          DIFF=$(git diff --name-only HEAD^ HEAD)
+          echo "Changed files: $DIFF"
+          
+          if echo "$DIFF" | grep -E 'android/|ios/|package-lock.json|app.json|eas.json'; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "Native changes detected. Triggering Full Build."
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "Only JS changes detected. Triggering OTA Update."
+          fi
+
+  # JOB 2: FAST PATH (OTA UPDATE)
+  update:
+    needs: check_changes
+    if: needs.check_changes.outputs.should_build == 'false'
     runs-on: ubuntu-latest
     steps:
-      # 2. CHECKOUT: Downloads your code to the runner
       - name: Setup repo
         uses: actions/checkout@v4
 
-      # 3. SETUP NODE: Sets up the JavaScript environment
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: npm
 
-      # 4. SETUP EAS: Installs the Expo CLI and logs in using your Secret
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          eas-version: latest
 
-      # 5. DEPENDENCIES: Installs your project libraries
       - name: Install dependencies
         run: npm ci
 
-      # 6. BUILD: The command that does the work
+      - name: Publish OTA Update
+        run: eas update --branch qa --message "${{ github.event.head_commit.message }}"
+
+  # JOB 3: SLOW PATH (FULL BUILD)
+  build:
+    needs: check_changes
+    if: needs.check_changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-version: latest
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Create QA Build
         run: eas build --platform android --profile qa --non-interactive

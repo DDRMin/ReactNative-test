@@ -1,4 +1,4 @@
-{ 
+{
   "cli": {
     "appVersionSource": "remote"
   },
@@ -8,14 +8,16 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_VARIANT": "qa" 
+        "APP_VARIANT": "qa"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "qa"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "channel": "production"
     }
   }
 }
