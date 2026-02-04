@@ -1,95 +1,18 @@
-import { AnimationConfig, BlurIntensity, Colors } from '@/theme/constants';
+import { BlurIntensity, Colors } from '@/theme/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { memo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 
 /**
- * Premium HomeHeader with:
- * - Animated rotating avatar ring
- * - Animated greeting text
- * - Premium notification badge with bounce
+ * Simplified HomeHeader with:
+ * - App logo and name "OD Movies"
+ * - Notification and search buttons
+ * - No heavy animations for better performance
  */
-const HomeHeader = () => {
+const HomeHeader = memo(() => {
   const router = useRouter();
-
-  // Animation values
-  const ringRotation = useSharedValue(0);
-  const greetingOpacity = useSharedValue(0);
-  const greetingTranslateY = useSharedValue(-10);
-  const badgeScale = useSharedValue(0);
-  const searchButtonScale = useSharedValue(0);
-
-  useEffect(() => {
-    // Rotating avatar ring
-    ringRotation.value = withRepeat(
-      withTiming(360, {
-        duration: 8000,
-        easing: Easing.linear
-      }),
-      -1,
-      false
-    );
-
-    // Greeting entrance
-    greetingOpacity.value = withDelay(
-      200,
-      withTiming(1, { duration: AnimationConfig.duration.normal })
-    );
-    greetingTranslateY.value = withDelay(
-      200,
-      withTiming(0, {
-        duration: AnimationConfig.duration.normal,
-        easing: Easing.out(Easing.cubic),
-      })
-    );
-
-    // Notification badge bounce
-    badgeScale.value = withDelay(
-      500,
-      withSequence(
-        withTiming(1.3, { duration: 150 }),
-        withTiming(1, { duration: 200 })
-      )
-    );
-
-    // Search button entrance
-    searchButtonScale.value = withDelay(
-      300,
-      withTiming(1, {
-        duration: AnimationConfig.duration.normal,
-        easing: Easing.out(Easing.back(1.5)),
-      })
-    );
-  }, []);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${ringRotation.value}deg` }],
-  }));
-
-  const greetingStyle = useAnimatedStyle(() => ({
-    opacity: greetingOpacity.value,
-    transform: [{ translateY: greetingTranslateY.value }],
-  }));
-
-  const badgeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: badgeScale.value }],
-  }));
-
-  const searchButtonAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: searchButtonScale.value }],
-  }));
 
   return (
     <BlurView
@@ -98,52 +21,44 @@ const HomeHeader = () => {
       style={styles.container}
     >
       <View style={styles.leftSection}>
-        {/* Avatar with animated ring */}
-        <View style={styles.avatarContainer}>
-          <Animated.View style={[styles.avatarRing, ringStyle]}>
-            <LinearGradient
-              colors={[Colors.primary[400], Colors.accent.emerald, Colors.primary[400]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+        {/* App Logo */}
+        <View style={styles.logoContainer}>
           <Image
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdKTYziTXf2mT_tNq2fZ7kBw87eo8-EXSdU6sWEBBxzAV3VOZgIbZv1GcoGH1J-GuFfSEeTvWnut1cjajsuqrnQHGv3KjEsmYKVDJRBuUzguA1xpjQE7sprva_oY3EM0GWhoxU5bvYF5cwxwVo6Qr2Qfap_PEMqnl0pVP_oJxL4QZhTzo3O853K82EjAGEm5YcGmNcG_EioIv3zeoZyHdfMi3LVoser3iDO9ReNnnyAJxV9Sa19qIDiqi4XFWYH8wmNgEFC0MFC0Q' }}
-            style={styles.avatar}
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
           />
-          <Animated.View style={[styles.onlineBadge, badgeStyle]} />
         </View>
 
-        {/* Greeting */}
-        <Animated.View style={greetingStyle}>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.nameText}>Alex Morgan ✨</Text>
-        </Animated.View>
+        {/* App Name */}
+        <View>
+          <Text style={styles.appName}>OD Movies</Text>
+          <Text style={styles.tagline}>Discover & Stream</Text>
+        </View>
       </View>
 
       {/* Search & Notifications */}
       <View style={styles.rightSection}>
-        {/* Notification with badge */}
+        {/* Notification */}
         <TouchableOpacity style={styles.iconButton}>
           <Ionicons name="notifications-outline" size={22} color={Colors.primary[300]} />
-          <Animated.View style={[styles.notificationDot, badgeStyle]} />
+          <View style={styles.notificationDot} />
         </TouchableOpacity>
 
         {/* Search Button */}
-        <Animated.View style={searchButtonAnimStyle}>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => router.push('/search')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="search" size={20} color={Colors.text.primary} />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity
+          style={styles.searchButton}
+          onPress={() => router.push('/search')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="search" size={20} color={Colors.text.primary} />
+        </TouchableOpacity>
       </View>
     </BlurView>
   );
-};
+});
+
+HomeHeader.displayName = 'HomeHeader';
 
 const styles = StyleSheet.create({
   container: {
@@ -151,57 +66,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.glass.light,
   },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
-  avatarContainer: {
-    position: 'relative',
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarRing: {
-    position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    padding: 2,
-  },
-  avatar: {
+  logoContainer: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: Colors.background.primary,
+    borderRadius: 12,
+    backgroundColor: Colors.glass.light,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.glass.border,
   },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.accent.emerald,
-    borderWidth: 2,
-    borderColor: Colors.background.primary,
+  logo: {
+    width: 32,
+    height: 32,
   },
-  welcomeText: {
+  appName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  tagline: {
     fontSize: 12,
     fontWeight: '500',
     color: Colors.text.muted,
-    marginBottom: 2,
-  },
-  nameText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text.primary,
+    marginTop: 1,
   },
   rightSection: {
     flexDirection: 'row',
