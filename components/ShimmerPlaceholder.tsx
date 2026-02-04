@@ -1,8 +1,8 @@
-import { AnimationConfig, Colors, Gradients } from '@/theme/constants';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect } from 'react';
+import { Colors } from '@/theme/constants';
+import React, { memo, useEffect } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import Animated, {
+    cancelAnimation,
     Easing,
     useAnimatedStyle,
     useSharedValue,
@@ -17,37 +17,37 @@ interface ShimmerPlaceholderProps {
     style?: ViewStyle;
 }
 
-const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
-
 /**
- * Premium shimmer loading placeholder
- * Provides a sleek animated skeleton loading effect
+ * Optimized shimmer loading placeholder
+ * Uses a single simple opacity pulse instead of heavy translate animation
  */
-const ShimmerPlaceholder = ({
+const ShimmerPlaceholder = memo(({
     width,
     height,
     borderRadius = 12,
     style
 }: ShimmerPlaceholderProps) => {
-    const translateX = useSharedValue(-200);
+    const opacity = useSharedValue(0.4);
 
     useEffect(() => {
-        translateX.value = withRepeat(
-            withTiming(400, {
-                duration: AnimationConfig.duration.shimmer,
-                easing: Easing.inOut(Easing.ease),
-            }),
+        // Simple opacity pulse - much lighter than translate animation
+        opacity.value = withRepeat(
+            withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
             -1,
-            false
+            true
         );
+
+        return () => {
+            cancelAnimation(opacity);
+        };
     }, []);
 
-    const shimmerStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: translateX.value }],
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
     }));
 
     return (
-        <View
+        <Animated.View
             style={[
                 styles.container,
                 {
@@ -55,25 +55,19 @@ const ShimmerPlaceholder = ({
                     height: height as number,
                     borderRadius,
                 },
+                animatedStyle,
                 style,
             ]}
-        >
-            <Animated.View style={[styles.shimmerContainer, shimmerStyle]}>
-                <LinearGradient
-                    colors={Gradients.shimmer}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={styles.shimmerGradient}
-                />
-            </Animated.View>
-        </View>
+        />
     );
-};
+});
+
+ShimmerPlaceholder.displayName = 'ShimmerPlaceholder';
 
 /**
  * Movie Card Skeleton - matches MovieCard dimensions
  */
-export const MovieCardSkeleton = ({ width = 160 }: { width?: number }) => (
+export const MovieCardSkeleton = memo(({ width = 160 }: { width?: number }) => (
     <View style={{ width, marginRight: 16 }}>
         <ShimmerPlaceholder
             width={width}
@@ -93,12 +87,14 @@ export const MovieCardSkeleton = ({ width = 160 }: { width?: number }) => (
             borderRadius={6}
         />
     </View>
-);
+));
+
+MovieCardSkeleton.displayName = 'MovieCardSkeleton';
 
 /**
  * Hero Section Skeleton
  */
-export const HeroSkeleton = () => (
+export const HeroSkeleton = memo(() => (
     <View style={styles.heroContainer}>
         <ShimmerPlaceholder
             width="100%"
@@ -115,31 +111,26 @@ export const HeroSkeleton = () => (
             </View>
         </View>
     </View>
-);
+));
+
+HeroSkeleton.displayName = 'HeroSkeleton';
 
 /**
  * Cast Member Skeleton
  */
-export const CastSkeleton = () => (
+export const CastSkeleton = memo(() => (
     <View style={{ alignItems: 'center', marginRight: 16, width: 80 }}>
         <ShimmerPlaceholder width={64} height={64} borderRadius={32} style={{ marginBottom: 8 }} />
         <ShimmerPlaceholder width={60} height={10} borderRadius={4} style={{ marginBottom: 4 }} />
         <ShimmerPlaceholder width={50} height={8} borderRadius={4} />
     </View>
-);
+));
+
+CastSkeleton.displayName = 'CastSkeleton';
 
 const styles = StyleSheet.create({
     container: {
         backgroundColor: Colors.glass.medium,
-        overflow: 'hidden',
-    },
-    shimmerContainer: {
-        ...StyleSheet.absoluteFillObject,
-        width: '100%',
-    },
-    shimmerGradient: {
-        width: 200,
-        height: '100%',
     },
     heroContainer: {
         width: '100%',
