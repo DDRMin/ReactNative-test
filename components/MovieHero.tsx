@@ -9,14 +9,11 @@ import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect } from 'react';
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
     useAnimatedStyle,
     useSharedValue,
     withDelay,
-    withRepeat,
-    withSequence,
     withSpring,
-    withTiming,
+    withTiming
 } from 'react-native-reanimated';
 
 interface MovieHeroProps {
@@ -66,28 +63,11 @@ const MovieHero = ({ movie, genres, trailerKey }: MovieHeroProps) => {
         buttonsOpacity.value = withDelay(650, withTiming(1, { duration: AnimationConfig.duration.normal }));
         buttonsTranslateY.value = withDelay(650, withSpring(0, AnimationConfig.spring.gentle));
 
-        // Pulsing glow on play button
-        playButtonGlow.value = withRepeat(
-            withSequence(
-                withTiming(0.7, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-                withTiming(0.4, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-            ),
-            -1,
-            true
-        );
+        // Static play button glow - removed infinite animation for performance
+        playButtonGlow.value = withTiming(0.5, { duration: 500 });
 
-        // Floating badge animation
-        badgeTranslateY.value = withDelay(
-            800,
-            withRepeat(
-                withSequence(
-                    withTiming(-3, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-                    withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-                ),
-                -1,
-                true
-            )
-        );
+        // Static badge - removed infinite floating for performance
+        // Already has entrance animation, no need for continuous float
     }, []);
 
     const handlePress = () => {

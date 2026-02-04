@@ -10,7 +10,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -147,12 +146,9 @@ export default function Profile() {
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     profileScale.value = withSpring(1, AnimationConfig.spring.gentle);
 
-    // Rotating avatar ring
-    avatarRing.value = withRepeat(
-      withTiming(360, { duration: 10000, easing: Easing.linear }),
-      -1,
-      false
-    );
+    // Static avatar ring - removed infinite rotation for performance
+    // One-time subtle rotation on mount instead
+    avatarRing.value = withTiming(15, { duration: 2000, easing: Easing.out(Easing.ease) });
   }, []);
 
   const headerStyle = useAnimatedStyle(() => ({

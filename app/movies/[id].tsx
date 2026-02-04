@@ -12,16 +12,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
     interpolate,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
     withDelay,
-    withRepeat,
     withSequence,
     withSpring,
-    withTiming,
+    withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -66,15 +64,8 @@ const MovieDetails = () => {
                 contentOpacity.value = withDelay(200, withTiming(1, { duration: AnimationConfig.duration.normal }));
                 contentTranslateY.value = withDelay(200, withSpring(0, AnimationConfig.spring.gentle));
 
-                // Play button glow
-                playButtonGlow.value = withRepeat(
-                    withSequence(
-                        withTiming(0.6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-                        withTiming(0.3, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-                    ),
-                    -1,
-                    true
-                );
+                // Static play button glow - removed infinite animation for performance
+                playButtonGlow.value = withTiming(0.4, { duration: 500 });
             } catch (error) {
                 console.error("Error fetching details:", error);
             } finally {

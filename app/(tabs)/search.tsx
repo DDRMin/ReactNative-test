@@ -17,13 +17,10 @@ import {
   View
 } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
   withSpring,
-  withTiming,
+  withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -53,15 +50,8 @@ export default function Search() {
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     headerY.value = withSpring(0, AnimationConfig.spring.gentle);
 
-    // Empty state icon pulse
-    emptyIconScale.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+    // Static empty state icon - removed infinite pulse for performance
+    emptyIconScale.value = withSpring(1, AnimationConfig.spring.gentle);
   }, []);
 
   useEffect(() => {

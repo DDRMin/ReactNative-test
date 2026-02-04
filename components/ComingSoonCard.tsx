@@ -8,11 +8,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
     useAnimatedStyle,
     useSharedValue,
-    withRepeat,
-    withSequence,
     withSpring,
     withTiming
 } from 'react-native-reanimated';
@@ -55,24 +52,9 @@ const ComingSoonCard = ({ movie, genres }: ComingSoonCardProps) => {
         opacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
         translateX.value = withSpring(0, AnimationConfig.spring.gentle);
 
-        // Pulsing notify button
-        notifyPulse.value = withRepeat(
-            withSequence(
-                withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-                withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-            ),
-            -1,
-            true
-        );
-
-        notifyGlow.value = withRepeat(
-            withSequence(
-                withTiming(0.6, { duration: 1500 }),
-                withTiming(0.3, { duration: 1500 })
-            ),
-            -1,
-            true
-        );
+        // Static notify button - removed infinite animations for performance
+        notifyPulse.value = withSpring(1, AnimationConfig.spring.gentle);
+        notifyGlow.value = withTiming(0.4, { duration: 500 });
     }, []);
 
     const containerStyle = useAnimatedStyle(() => ({

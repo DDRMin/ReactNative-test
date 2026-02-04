@@ -20,8 +20,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -50,28 +48,14 @@ export default function Saved() {
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     headerY.value = withSpring(0, AnimationConfig.spring.gentle);
 
-    // Pulsing heart badge
-    heartScale.value = withRepeat(
-      withSequence(
-        withTiming(1.1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+    // Static heart badge - removed infinite pulse for performance
+    heartScale.value = withSpring(1, AnimationConfig.spring.gentle);
 
-    // Floating hearts for empty state
+    // Static floating hearts - removed infinite animation for performance
     floatingHearts.forEach((heart, index) => {
       heart.value = withDelay(
-        index * 500,
-        withRepeat(
-          withSequence(
-            withTiming(-40, { duration: 3000, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 0 })
-          ),
-          -1,
-          false
-        )
+        index * 200,
+        withTiming(-20, { duration: 800, easing: Easing.out(Easing.ease) })
       );
     });
   }, []);
