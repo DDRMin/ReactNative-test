@@ -6,6 +6,7 @@ import { discoverMovies, getGenres, getPopularMovies, searchMovies } from '@/ser
 import { AnimationConfig, Colors } from '@/theme/constants';
 import { Genre, Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -78,6 +79,18 @@ export default function Search() {
 
     return () => clearTimeout(focusTimer);
   }, []);
+
+  // Reset search when leaving the screen
+  useFocusEffect(
+    useCallback(() => {
+      // This runs when the screen comes into focus - do nothing
+      return () => {
+        // This runs when the screen loses focus - reset search
+        setQuery('');
+        setFilters(DEFAULT_FILTERS);
+      };
+    }, [])
+  );
 
   useEffect(() => {
     searchBarScale.value = withSpring(isFocused ? 1.02 : 1, AnimationConfig.spring.snappy);
