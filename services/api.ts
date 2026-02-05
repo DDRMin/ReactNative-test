@@ -4,10 +4,14 @@ export const TMDB_CONFIG = {
     BASE_URL: 'https://api.themoviedb.org/3',
     IMAGE_BASE_URL: 'https://image.tmdb.org/t/p/w500',
     BACKDROP_BASE_URL: 'https://image.tmdb.org/t/p/w1280',
-    API_KEY: process.env.EXPO_PUBLIC_MOVIE_API_KEY,
-    headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${process.env.EXPO_PUBLIC_MOVIE_API_KEY}`,
+    // Getter to ensure API key is read at request time, not module load time
+    // This fixes OTA updates where env vars may not be available immediately
+    get headers() {
+        const apiKey = process.env.EXPO_PUBLIC_MOVIE_API_KEY;
+        return {
+            accept: 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+        };
     }
 };
 
@@ -19,7 +23,10 @@ export const fetchFromApi = async <T>({ query }: { query: string }): Promise<T> 
             headers: TMDB_CONFIG.headers,
         });
         if (!response.ok) {
-            throw new Error(`Error fetching data: ${response.statusText}`);
+            // Log more details for debugging
+            const errorText = await response.text().catch(() => 'No error body');
+            console.error(`API Error ${response.status}: ${response.statusText}`, errorText);
+            throw new Error(`Error fetching data: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
         return data;
