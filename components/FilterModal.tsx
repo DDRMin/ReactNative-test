@@ -1,7 +1,7 @@
 import { Colors } from '@/theme/constants';
+import { hapticLight, hapticMedium, hapticSelection } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import React from 'react';
 import {
     Dimensions,
@@ -61,17 +61,17 @@ export default function FilterModal({
     }, [visible, filters]);
 
     const handleSortChange = (sort: SortOption) => {
-        Haptics.selectionAsync();
+        hapticSelection();
         setLocalFilters(prev => ({ ...prev, sortBy: sort }));
     };
 
     const handleYearChange = (year: number | null) => {
-        Haptics.selectionAsync();
+        hapticSelection();
         setLocalFilters(prev => ({ ...prev, year }));
     };
 
     const handleGenreToggle = (genreId: number) => {
-        Haptics.selectionAsync();
+        hapticSelection();
         setLocalFilters(prev => ({
             ...prev,
             genres: prev.genres.includes(genreId)
@@ -81,12 +81,12 @@ export default function FilterModal({
     };
 
     const handleReset = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticLight();
         setLocalFilters({ sortBy: 'popular', year: null, genres: [] });
     };
 
     const handleApply = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        hapticMedium();
         onApply(localFilters);
         onClose();
     };

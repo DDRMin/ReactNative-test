@@ -1,6 +1,6 @@
+import { hapticLight } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -48,7 +48,7 @@ const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalPro
     }, [visible]);
 
     const handleClose = useCallback(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticLight();
 
         fadeAnim.value = withTiming(0, { duration: 200 });
         scaleAnim.value = withTiming(0.9, { duration: 200 }, (finished) => {

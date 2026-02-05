@@ -4,9 +4,9 @@ import { useSavedMovies } from '@/contexts/SavedMoviesContext';
 import { getImageUrl, getMovieCredits, getMovieDetails, getMovieVideos } from '@/services/api';
 import { AnimationConfig, BlurIntensity, Colors, Gradients, Shadows } from '@/theme/constants';
 import { Cast, Movie, Video } from '@/types/movie';
+import { hapticMedium, hapticWarning } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -78,7 +78,7 @@ const MovieDetails = () => {
     const handleSaveToggle = async () => {
         if (!movie) return;
 
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        hapticMedium();
 
         // Heart bounce animation
         heartScale.value = withSequence(
@@ -99,7 +99,7 @@ const MovieDetails = () => {
         if (trailer) {
             setModalVisible(true);
         } else {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            hapticWarning();
         }
     };
 
