@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   FlatList,
   RefreshControl,
@@ -20,6 +19,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -37,27 +38,14 @@ export default function Saved() {
   const headerOpacity = useSharedValue(0);
   const headerY = useSharedValue(-20);
   const heartScale = useSharedValue(1);
-  const floatingHearts = [
-    useSharedValue(0),
-    useSharedValue(0),
-    useSharedValue(0),
-  ];
 
   useEffect(() => {
     // Header entrance
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     headerY.value = withSpring(0, AnimationConfig.spring.gentle);
 
-    // Static heart badge - removed infinite pulse for performance
+    // Heart badge pulse
     heartScale.value = withSpring(1, AnimationConfig.spring.gentle);
-
-    // Static floating hearts - removed infinite animation for performance
-    floatingHearts.forEach((heart, index) => {
-      heart.value = withDelay(
-        index * 200,
-        withTiming(-20, { duration: 800, easing: Easing.out(Easing.ease) })
-      );
-    });
   }, []);
 
   const renderMovie = useCallback(({ item, index }: { item: Movie; index: number }) => (
@@ -77,19 +65,21 @@ export default function Saved() {
 
   if (isLoading) {
     return (
-      <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
+      <View style={styles.container}>
         <AmbientBackground />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ACCENT_COLOR} />
+          <Animated.View style={styles.loadingHeart}>
+            <Ionicons name="heart" size={32} color={ACCENT_COLOR} />
+          </Animated.View>
         </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
+    <View style={styles.container}>
       <AmbientBackground />
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <SafeAreaView style={styles.flex} edges={['top']}>
         {/* Header */}
         <Animated.View style={[styles.header, headerStyle]}>
           <View>
@@ -116,8 +106,8 @@ export default function Saved() {
             renderItem={renderMovie}
             keyExtractor={(item) => item.id.toString()}
             numColumns={2}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             removeClippedSubviews={true}
             maxToRenderPerBatch={8}
@@ -132,45 +122,119 @@ export default function Saved() {
             }
           />
         ) : (
-          <EmptyState floatingHearts={floatingHearts} />
+          <EmptyStateWithHearts />
         )}
       </SafeAreaView>
     </View>
   );
 }
 
-// Individual floating heart component to respect Rules of Hooks
-const FloatingHeart = ({ heart, index }: { heart: ReturnType<typeof useSharedValue<number>>; index: number }) => {
-  const heartStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: heart.value }],
-    opacity: 1 - Math.abs(heart.value) / 40,
+// Animated floating heart that continuously pops up
+const FloatingHeart = ({
+  delay,
+  startX,
+  size,
+  duration
+}: {
+  delay: number;
+  startX: number;
+  size: number;
+  duration: number;
+}) => {
+  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    const startAnimation = () => {
+      // Reset values
+      translateY.value = 0;
+      translateX.value = 0;
+      scale.value = 0;
+      opacity.value = 0;
+      rotation.value = 0;
+
+      // Float up animation
+      translateY.value = withDelay(
+        delay,
+        withTiming(-180, { duration, easing: Easing.out(Easing.cubic) })
+      );
+
+      // Slight horizontal drift
+      translateX.value = withDelay(
+        delay,
+        withTiming((Math.random() - 0.5) * 40, { duration, easing: Easing.inOut(Easing.ease) })
+      );
+
+      // Pop in and fade out
+      scale.value = withDelay(
+        delay,
+        withSequence(
+          withSpring(1.2, { damping: 8, stiffness: 200 }),
+          withTiming(0.8, { duration: duration * 0.6 })
+        )
+      );
+
+      opacity.value = withDelay(
+        delay,
+        withSequence(
+          withTiming(1, { duration: 200 }),
+          withDelay(duration * 0.5, withTiming(0, { duration: duration * 0.4 }))
+        )
+      );
+
+      // Slight rotation
+      rotation.value = withDelay(
+        delay,
+        withTiming((Math.random() - 0.5) * 30, { duration, easing: Easing.inOut(Easing.ease) })
+      );
+    };
+
+    startAnimation();
+
+    // Repeat animation
+    const interval = setInterval(startAnimation, duration + delay + 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+    opacity: opacity.value,
   }));
 
   return (
-    <Animated.View
-      style={[
-        styles.floatingHeart,
-        { left: 40 + index * 30 },
-        heartStyle,
-      ]}
-    >
-      <Ionicons
-        name="heart"
-        size={16 + index * 4}
-        color={`rgba(251, 113, 133, ${0.3 + index * 0.1})`}
-      />
+    <Animated.View style={[styles.floatingHeart, { left: startX }, animatedStyle]}>
+      <Ionicons name="heart" size={size} color={ACCENT_COLOR} />
     </Animated.View>
   );
 };
 
-// Animated Empty State
-const EmptyState = ({ floatingHearts }: { floatingHearts: ReturnType<typeof useSharedValue<number>>[] }) => {
+// Empty state with continuous heart pop animation
+const EmptyStateWithHearts = () => {
   const containerScale = useSharedValue(0.8);
   const containerOpacity = useSharedValue(0);
+  const mainHeartScale = useSharedValue(1);
 
   useEffect(() => {
     containerOpacity.value = withDelay(200, withTiming(1, { duration: 400 }));
     containerScale.value = withDelay(200, withSpring(1, AnimationConfig.spring.gentle));
+
+    // Main heart subtle pulse
+    mainHeartScale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
   }, []);
 
   const containerStyle = useAnimatedStyle(() => ({
@@ -178,24 +242,39 @@ const EmptyState = ({ floatingHearts }: { floatingHearts: ReturnType<typeof useS
     transform: [{ scale: containerScale.value }],
   }));
 
+  const mainHeartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: mainHeartScale.value }],
+  }));
+
+  // Generate multiple floating hearts with different properties
+  const hearts = [
+    { delay: 0, startX: 20, size: 18, duration: 2500 },
+    { delay: 400, startX: 55, size: 14, duration: 2800 },
+    { delay: 800, startX: 90, size: 20, duration: 2300 },
+    { delay: 1200, startX: 125, size: 16, duration: 2600 },
+    { delay: 1600, startX: 160, size: 22, duration: 2400 },
+    { delay: 300, startX: 195, size: 15, duration: 2700 },
+    { delay: 700, startX: 230, size: 19, duration: 2500 },
+  ];
+
   return (
     <View style={styles.emptyContainer}>
-      <Animated.View style={[styles.emptyContent, containerStyle]}>
-        {/* Floating hearts */}
-        <View style={styles.floatingHeartsContainer}>
-          {floatingHearts.map((heart, index) => (
-            <FloatingHeart key={index} heart={heart} index={index} />
-          ))}
-        </View>
+      {/* Floating hearts background */}
+      <View style={styles.heartsContainer}>
+        {hearts.map((heart, index) => (
+          <FloatingHeart key={index} {...heart} />
+        ))}
+      </View>
 
-        {/* Main icon */}
-        <View style={styles.emptyIconContainer}>
+      <Animated.View style={[styles.emptyContent, containerStyle]}>
+        {/* Main icon with pulse */}
+        <Animated.View style={[styles.emptyIconContainer, mainHeartStyle]}>
           <LinearGradient
-            colors={['rgba(244, 63, 94, 0.1)', 'rgba(251, 113, 133, 0.05)']}
+            colors={['rgba(244, 63, 94, 0.15)', 'rgba(251, 113, 133, 0.05)']}
             style={StyleSheet.absoluteFill}
           />
-          <Ionicons name="heart-outline" size={56} color="rgba(251, 113, 133, 0.5)" />
-        </View>
+          <Ionicons name="heart-outline" size={56} color="rgba(251, 113, 133, 0.6)" />
+        </Animated.View>
 
         <Text style={styles.emptyTitle}>No favorites yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -207,10 +286,20 @@ const EmptyState = ({ floatingHearts }: { floatingHearts: ReturnType<typeof useS
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background.primary,
+  },
+  flex: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingHeart: {
+    opacity: 0.6,
   },
   header: {
     flexDirection: 'row',
@@ -240,25 +329,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(251, 113, 133, 0.3)',
   },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 120,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 100,
   },
-  emptyContent: {
-    alignItems: 'center',
-  },
-  floatingHeartsContainer: {
+  heartsContainer: {
     position: 'absolute',
-    top: 0,
+    bottom: 200,
     left: 0,
     right: 0,
-    height: 60,
+    height: 200,
+    alignItems: 'center',
   },
   floatingHeart: {
     position: 'absolute',
     bottom: 0,
+  },
+  emptyContent: {
+    alignItems: 'center',
+    zIndex: 10,
   },
   emptyIconContainer: {
     width: 120,
@@ -268,7 +366,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: 'rgba(251, 113, 133, 0.2)',
+    borderColor: 'rgba(251, 113, 133, 0.25)',
     overflow: 'hidden',
   },
   emptyTitle: {
