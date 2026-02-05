@@ -1,13 +1,27 @@
 import { CreditsResponse, Movie, MovieResponse, VideoResponse } from "@/types/movie";
+import Constants from 'expo-constants';
+
+// Get API key from multiple sources for reliability
+const getApiKey = (): string => {
+    // Try process.env first (works in Expo Go and some builds)
+    const envKey = process.env.EXPO_PUBLIC_MOVIE_API_KEY;
+    if (envKey) return envKey;
+
+    // Fallback to expo-constants extra (baked in at build time)
+    const extraKey = Constants.expoConfig?.extra?.movieApiKey;
+    if (extraKey) return extraKey;
+
+    console.warn('⚠️ TMDB API key not found! Check your environment variables.');
+    return '';
+};
 
 export const TMDB_CONFIG = {
     BASE_URL: 'https://api.themoviedb.org/3',
     IMAGE_BASE_URL: 'https://image.tmdb.org/t/p/w500',
     BACKDROP_BASE_URL: 'https://image.tmdb.org/t/p/w1280',
-    // Getter to ensure API key is read at request time, not module load time
-    // This fixes OTA updates where env vars may not be available immediately
+    // Getter to ensure API key is read at request time
     get headers() {
-        const apiKey = process.env.EXPO_PUBLIC_MOVIE_API_KEY;
+        const apiKey = getApiKey();
         return {
             accept: 'application/json',
             Authorization: `Bearer ${apiKey}`,
