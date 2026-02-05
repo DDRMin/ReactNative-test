@@ -5,13 +5,24 @@ import Constants from 'expo-constants';
 const getApiKey = (): string => {
     // Try process.env first (works in Expo Go and some builds)
     const envKey = process.env.EXPO_PUBLIC_MOVIE_API_KEY;
-    if (envKey) return envKey;
+    if (envKey) {
+        console.log('🔑 API key source: process.env');
+        return envKey;
+    }
 
     // Fallback to expo-constants extra (baked in at build time)
     const extraKey = Constants.expoConfig?.extra?.movieApiKey;
-    if (extraKey) return extraKey;
+    if (extraKey) {
+        console.log('🔑 API key source: Constants.expoConfig.extra');
+        return extraKey;
+    }
 
-    console.warn('⚠️ TMDB API key not found! Check your environment variables.');
+    // Debug: Log what we have available
+    console.error('❌ TMDB API key not found!');
+    console.error('  - process.env.EXPO_PUBLIC_MOVIE_API_KEY:', envKey ? 'SET' : 'UNDEFINED');
+    console.error('  - Constants.expoConfig?.extra?.movieApiKey:', extraKey ? 'SET' : 'UNDEFINED');
+    console.error('  - Full extra object:', JSON.stringify(Constants.expoConfig?.extra, null, 2));
+
     return '';
 };
 
