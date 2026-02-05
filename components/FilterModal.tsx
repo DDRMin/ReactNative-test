@@ -13,7 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -115,8 +115,8 @@ export default function FilterModal({
                 </Animated.View>
 
                 <Animated.View
-                    entering={SlideInDown.springify().damping(20)}
-                    exiting={SlideOutDown.duration(200)}
+                    entering={SlideInDown.duration(350).easing(Easing.out(Easing.cubic))}
+                    exiting={SlideOutDown.duration(250).easing(Easing.in(Easing.cubic))}
                     style={styles.modalContainer}
                 >
                     <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
