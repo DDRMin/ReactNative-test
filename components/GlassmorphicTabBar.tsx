@@ -1,8 +1,8 @@
 import { AnimationConfig, BlurIntensity, Colors, Gradients } from '@/theme/constants';
+import { hapticTabPress } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -175,7 +175,8 @@ const TabButton = ({ route, index, isFocused, navigation }: TabButtonProps) => {
             canPreventDefault: true,
         });
 
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        // Trigger haptic feedback
+        hapticTabPress();
 
         if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);

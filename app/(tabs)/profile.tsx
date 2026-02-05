@@ -1,5 +1,6 @@
 import AmbientBackground from '@/components/AmbientBackground';
 import { useSavedMovies } from '@/contexts/SavedMoviesContext';
+import { getHapticsEnabled, setHapticsEnabled } from '@/services/storage';
 import { AnimationConfig, Colors } from '@/theme/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -136,6 +137,7 @@ export default function Profile() {
   const { savedMovies } = useSavedMovies();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
+  const [hapticsEnabled, setHapticsEnabledState] = React.useState(true);
 
   // Animation values
   const headerOpacity = useSharedValue(0);
@@ -144,7 +146,20 @@ export default function Profile() {
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     profileScale.value = withSpring(1, AnimationConfig.spring.gentle);
+    
+    // Load haptics preference
+    loadHapticsPreference();
   }, []);
+
+  const loadHapticsPreference = async () => {
+    const enabled = await getHapticsEnabled();
+    setHapticsEnabledState(enabled);
+  };
+
+  const handleHapticsToggle = async (value: boolean) => {
+    setHapticsEnabledState(value);
+    await setHapticsEnabled(value);
+  };
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
@@ -250,6 +265,18 @@ export default function Profile() {
                 iconColor={Colors.star}
                 iconBgColor="rgba(250, 204, 21, 0.1)"
                 delay={500}
+              />
+              <View style={styles.divider} />
+              <SettingItem
+                icon="phone-portrait-outline"
+                title="Haptic Feedback"
+                subtitle="Feel vibrations on interactions"
+                isToggle
+                toggleValue={hapticsEnabled}
+                onToggle={handleHapticsToggle}
+                iconColor={ACCENT_COLOR}
+                iconBgColor="rgba(74, 222, 128, 0.1)"
+                delay={525}
               />
               <View style={styles.divider} />
               <SettingItem

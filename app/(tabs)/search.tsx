@@ -1,12 +1,14 @@
 import AmbientBackground from '@/components/AmbientBackground';
+import FilterModal, { FilterState } from '@/components/FilterModal';
 import MovieCard from '@/components/MovieCard';
 import { MovieCardSkeleton } from '@/components/ShimmerPlaceholder';
-import { getGenres, getPopularMovies, searchMovies } from '@/services/api';
+import { discoverMovies, getGenres, getPopularMovies, searchMovies } from '@/services/api';
 import { AnimationConfig, Colors } from '@/theme/constants';
 import { Genre, Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -28,14 +30,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
+const DEFAULT_FILTERS: FilterState = {
+  sortBy: 'popular',
+  year: null,
+  genres: [],
+};
+
 export default function Search() {
   const [query, setQuery] = useState('');
   const [movies, setMovies] = useState<Movie[]>([]);
   const [genres, setGenres] = useState<Record<number, string>>({});
+  const [genreList, setGenreList] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [includeAdult, setIncludeAdult] = useState(false);
+
+  // Filter state
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
 
   // Ref for auto-focus
   const searchInputRef = useRef<TextInput>(null);
@@ -44,6 +57,15 @@ export default function Search() {
   const searchBarScale = useSharedValue(1);
   const headerOpacity = useSharedValue(0);
   const headerY = useSharedValue(-20);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.sortBy !== 'popular') count++;
+    if (filters.year !== null) count++;
+    count += filters.genres.length;
+    return count;
+  }, [filters]);
 
   useEffect(() => {
     // Header entrance animation
@@ -57,6 +79,18 @@ export default function Search() {
 
     return () => clearTimeout(focusTimer);
   }, []);
+
+  // Reset search when leaving the screen
+  useFocusEffect(
+    useCallback(() => {
+      // This runs when the screen comes into focus - do nothing
+      return () => {
+        // This runs when the screen loses focus - reset search
+        setQuery('');
+        setFilters(DEFAULT_FILTERS);
+      };
+    }, [])
+  );
 
   useEffect(() => {
     searchBarScale.value = withSpring(isFocused ? 1.02 : 1, AnimationConfig.spring.snappy);
@@ -74,6 +108,7 @@ export default function Search() {
         const genreMap: Record<number, string> = {};
         genresData.genres.forEach((g: Genre) => genreMap[g.id] = g.name);
         setGenres(genreMap);
+        setGenreList(genresData.genres);
         setMovies(popularData.results);
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -84,38 +119,75 @@ export default function Search() {
     loadInitialData();
   }, []);
 
-  // Debounced search
+  // Convert filter state to API params
+  const getDiscoverParams = useCallback((filterState: FilterState) => {
+    const params: Record<string, any> = {
+      include_adult: includeAdult,
+    };
+
+    // Sort by
+    switch (filterState.sortBy) {
+      case 'top_rated':
+        params.sort_by = 'vote_average.desc';
+        params['vote_count.gte'] = 200; // Ensure enough votes for accuracy
+        break;
+      case 'newest':
+        params.sort_by = 'primary_release_date.desc';
+        break;
+      default:
+        params.sort_by = 'popularity.desc';
+    }
+
+    // Year
+    if (filterState.year) {
+      params.primary_release_year = filterState.year;
+    }
+
+    // Genres (use pipe for OR logic)
+    if (filterState.genres.length > 0) {
+      params.with_genres = filterState.genres.join('|');
+    }
+
+    return params;
+  }, [includeAdult]);
+
+  // Debounced search/filter effect
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (query.trim().length > 0) {
-        setLoading(true);
-        try {
+      setLoading(true);
+      try {
+        if (query.trim().length > 0) {
+          // Text search - sort by vote_average descending
           const results = await searchMovies(query, 1, includeAdult);
+          const sortedResults = [...results.results].sort((a, b) => b.vote_average - a.vote_average);
+          setMovies(sortedResults);
+        } else {
+          // No query - use discover with filters
+          const params = getDiscoverParams(filters);
+          const results = await discoverMovies(params);
           setMovies(results.results);
-        } catch (error) {
-          console.error('Search error:', error);
-        } finally {
-          setLoading(false);
         }
-      } else if (query.trim().length === 0) {
-        setLoading(true);
-        try {
-          const popularData = await getPopularMovies();
-          setMovies(popularData.results);
-        } catch (error) {
-          console.error('Error loading popular movies:', error);
-        } finally {
-          setLoading(false);
-        }
+      } catch (error) {
+        console.error('Search/filter error:', error);
+      } finally {
+        setLoading(false);
       }
     }, 400);
 
     return () => clearTimeout(timeoutId);
-  }, [query, includeAdult]);
+  }, [query, includeAdult, filters, getDiscoverParams]);
 
   const clearSearch = () => {
     setQuery('');
     searchInputRef.current?.focus();
+  };
+
+  const handleApplyFilters = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    // Clear search query when applying filters for better UX
+    if (query.trim().length > 0) {
+      setQuery('');
+    }
   };
 
   const renderMovie = useCallback(({ item, index }: { item: Movie; index: number }) => (
@@ -132,6 +204,15 @@ export default function Search() {
     opacity: headerOpacity.value,
     transform: [{ translateY: headerY.value }],
   }));
+
+  // Get result label based on current state
+  const getResultLabel = () => {
+    if (query) return 'Results';
+    if (filters.sortBy === 'top_rated') return 'Top Rated';
+    if (filters.sortBy === 'newest') return 'Newest';
+    if (filters.genres.length > 0) return genres[filters.genres[0]] || 'Filtered';
+    return 'Popular';
+  };
 
   if (initialLoading) {
     return (
@@ -204,7 +285,7 @@ export default function Search() {
           <View style={styles.infoBar}>
             <View style={styles.infoLeft}>
               <Text style={styles.resultLabel}>
-                {query ? 'Results' : 'Popular'}
+                {getResultLabel()}
               </Text>
               <View style={styles.countPill}>
                 <Text style={styles.countText}>{movies.length}</Text>
@@ -213,10 +294,22 @@ export default function Search() {
             </View>
 
             <TouchableOpacity
-              style={styles.filterButton}
-              onPress={() => Keyboard.dismiss()}
+              style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setFilterModalVisible(true);
+              }}
             >
-              <Ionicons name="options-outline" size={18} color={Colors.text.tertiary} />
+              <Ionicons
+                name="options-outline"
+                size={18}
+                color={activeFilterCount > 0 ? Colors.primary[400] : Colors.text.tertiary}
+              />
+              {activeFilterCount > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -244,10 +337,20 @@ export default function Search() {
               <Ionicons name="search-outline" size={48} color={Colors.text.dimmed} />
             </View>
             <Text style={styles.emptyTitle}>No movies found</Text>
-            <Text style={styles.emptySubtitle}>Try searching for something else</Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your filters</Text>
           </View>
         )}
       </SafeAreaView>
+
+      {/* Filter Modal */}
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        filters={filters}
+        onApply={handleApplyFilters}
+        genres={genreList}
+        resultCount={movies.length}
+      />
     </View>
   );
 }
@@ -374,6 +477,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  filterButtonActive: {
+    backgroundColor: 'rgba(34, 211, 238, 0.15)',
+    borderWidth: 1,
+    borderColor: Colors.primary[500],
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#000',
   },
 
   // List
