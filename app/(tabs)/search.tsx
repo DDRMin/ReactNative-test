@@ -5,7 +5,8 @@ import { getGenres, getPopularMovies, searchMovies } from '@/services/api';
 import { AnimationConfig, Colors } from '@/theme/constants';
 import { Genre, Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import { BlurView } from 'expo-blur';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -27,10 +28,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
-const ACCENT_COLOR = Colors.accent.violet;
-const ACCENT_LIGHT = 'rgba(167, 139, 250, 0.4)';
-const ACCENT_DIM = 'rgba(167, 139, 250, 0.15)';
-
 export default function Search() {
   const [query, setQuery] = useState('');
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -40,26 +37,29 @@ export default function Search() {
   const [isFocused, setIsFocused] = useState(false);
   const [includeAdult, setIncludeAdult] = useState(false);
 
+  // Ref for auto-focus
+  const searchInputRef = useRef<TextInput>(null);
+
   // Animation values
-  const searchBarGlow = useSharedValue(0);
-  const emptyIconScale = useSharedValue(1);
+  const searchBarScale = useSharedValue(1);
   const headerOpacity = useSharedValue(0);
   const headerY = useSharedValue(-20);
-  const adultToggleScale = useSharedValue(1);
 
   useEffect(() => {
-    // Header entrance
+    // Header entrance animation
     headerOpacity.value = withTiming(1, { duration: AnimationConfig.duration.normal });
     headerY.value = withSpring(0, AnimationConfig.spring.gentle);
 
-    // Static empty state icon - removed infinite pulse for performance
-    emptyIconScale.value = withSpring(1, AnimationConfig.spring.gentle);
+    // Auto-focus search bar after initial load
+    const focusTimer = setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
+
+    return () => clearTimeout(focusTimer);
   }, []);
 
   useEffect(() => {
-    searchBarGlow.value = withTiming(isFocused ? 1 : 0, {
-      duration: AnimationConfig.duration.fast
-    });
+    searchBarScale.value = withSpring(isFocused ? 1.02 : 1, AnimationConfig.spring.snappy);
   }, [isFocused]);
 
   // Load initial data
@@ -84,7 +84,7 @@ export default function Search() {
     loadInitialData();
   }, []);
 
-  // Debounced search - triggers on query or includeAdult change
+  // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (query.trim().length > 0) {
@@ -108,25 +108,14 @@ export default function Search() {
           setLoading(false);
         }
       }
-    }, 500);
+    }, 400);
 
     return () => clearTimeout(timeoutId);
   }, [query, includeAdult]);
 
-  const toggleAdult = () => {
-    adultToggleScale.value = withSpring(0.9, AnimationConfig.spring.snappy, () => {
-      adultToggleScale.value = withSpring(1, AnimationConfig.spring.snappy);
-    });
-    setIncludeAdult(!includeAdult);
-  };
-
-  const adultToggleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: adultToggleScale.value }],
-  }));
-
   const clearSearch = () => {
     setQuery('');
-    Keyboard.dismiss();
+    searchInputRef.current?.focus();
   };
 
   const renderMovie = useCallback(({ item, index }: { item: Movie; index: number }) => (
@@ -136,8 +125,7 @@ export default function Search() {
   ), [genres]);
 
   const searchBarStyle = useAnimatedStyle(() => ({
-    borderColor: isFocused ? ACCENT_LIGHT : ACCENT_DIM,
-    shadowOpacity: searchBarGlow.value * 0.3,
+    transform: [{ scale: searchBarScale.value }],
   }));
 
   const headerStyle = useAnimatedStyle(() => ({
@@ -145,17 +133,13 @@ export default function Search() {
     transform: [{ translateY: headerY.value }],
   }));
 
-  const emptyIconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: emptyIconScale.value }],
-  }));
-
   if (initialLoading) {
     return (
-      <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
+      <View style={styles.container}>
         <AmbientBackground />
-        <SafeAreaView className="flex-1" edges={['top']}>
-          <View className="px-5 pt-4 pb-4">
-            <View className="flex-row gap-4 mb-4">
+        <SafeAreaView style={styles.flex} edges={['top']}>
+          <View style={styles.skeletonContainer}>
+            <View style={styles.skeletonRow}>
               {[1, 2].map((i) => (
                 <View key={i} style={{ width: CARD_WIDTH }}>
                   <MovieCardSkeleton width={CARD_WIDTH} />
@@ -169,77 +153,73 @@ export default function Search() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
+    <View style={styles.container}>
       <AmbientBackground />
-      <SafeAreaView className="flex-1" edges={['top']}>
-        {/* Header */}
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        {/* Clean Header */}
         <Animated.View style={[styles.header, headerStyle]}>
-          <View className="flex-row items-center justify-between mb-4">
-            <Text style={styles.headerTitle}>Discover</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{movies.length} movies</Text>
-            </View>
-          </View>
+          {/* Search Bar - Clean & Professional */}
+          <Animated.View style={[styles.searchWrapper, searchBarStyle]}>
+            <BlurView intensity={25} tint="dark" style={styles.searchBlur}>
+              <View style={[styles.searchInner, isFocused && styles.searchInnerFocused]}>
+                <Ionicons
+                  name="search"
+                  size={20}
+                  color={isFocused ? Colors.primary[400] : Colors.text.muted}
+                />
+                <TextInput
+                  ref={searchInputRef}
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search movies..."
+                  placeholderTextColor={Colors.text.dimmed}
+                  style={styles.searchInput}
+                  selectionColor={Colors.primary[400]}
+                  returnKeyType="search"
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {query.length > 0 && (
+                  <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={20} color={Colors.text.muted} />
+                  </TouchableOpacity>
+                )}
 
-          {/* Premium Search Input */}
-          <View style={styles.searchRow}>
-            <Animated.View style={[styles.searchContainer, searchBarStyle, { flex: 1 }]}>
-              <Ionicons name="search" size={20} color={ACCENT_COLOR} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search movies, actors..."
-                placeholderTextColor="rgba(167, 139, 250, 0.4)"
-                style={styles.searchInput}
-                selectionColor={ACCENT_COLOR}
-                returnKeyType="search"
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-              />
-              {query.length > 0 && (
-                <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-                  <Ionicons name="close" size={14} color={ACCENT_COLOR} />
+                {/* 18+ Toggle - Compact */}
+                <TouchableOpacity
+                  onPress={() => setIncludeAdult(!includeAdult)}
+                  style={[styles.adultBadge, includeAdult && styles.adultBadgeActive]}
+                >
+                  <Text style={[styles.adultText, includeAdult && styles.adultTextActive]}>
+                    18+
+                  </Text>
                 </TouchableOpacity>
-              )}
-            </Animated.View>
+              </View>
+            </BlurView>
+          </Animated.View>
 
-            {/* Adult Content Toggle */}
-            <TouchableOpacity onPress={toggleAdult} activeOpacity={0.8}>
-              <Animated.View
-                style={[
-                  styles.adultToggle,
-                  includeAdult && styles.adultToggleActive,
-                  adultToggleStyle
-                ]}
-              >
-                <Text style={[styles.adultToggleText, includeAdult && styles.adultToggleTextActive]}>
-                  18+
-                </Text>
-                <View style={[styles.toggleIndicator, includeAdult && styles.toggleIndicatorActive]}>
-                  <View style={[styles.toggleDot, includeAdult && styles.toggleDotActive]} />
-                </View>
-              </Animated.View>
+          {/* Results Info Bar */}
+          <View style={styles.infoBar}>
+            <View style={styles.infoLeft}>
+              <Text style={styles.resultLabel}>
+                {query ? 'Results' : 'Popular'}
+              </Text>
+              <View style={styles.countPill}>
+                <Text style={styles.countText}>{movies.length}</Text>
+              </View>
+              {loading && <View style={styles.loadingIndicator} />}
+            </View>
+
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => Keyboard.dismiss()}
+            >
+              <Ionicons name="options-outline" size={18} color={Colors.text.tertiary} />
             </TouchableOpacity>
           </View>
         </Animated.View>
-
-        {/* Filter Pills */}
-        <View style={styles.filterContainer}>
-          <FilterPill label="All" color={ACCENT_COLOR} active />
-          <FilterPill label="Top Rated" color={Colors.accent.emerald} />
-          <FilterPill label="New" color={Colors.accent.rose} />
-          <FilterPill label="Popular" color={Colors.star} />
-        </View>
-
-        {/* Section Title */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {query ? 'Search Results' : 'Popular Movies'}
-          </Text>
-          {loading && (
-            <View style={styles.loadingDot} />
-          )}
-        </View>
 
         {/* Results Grid */}
         {movies.length > 0 ? (
@@ -248,21 +228,23 @@ export default function Search() {
             renderItem={renderMovie}
             keyExtractor={(item) => item.id.toString()}
             numColumns={2}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             removeClippedSubviews={true}
             maxToRenderPerBatch={8}
             windowSize={5}
             initialNumToRender={6}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => Keyboard.dismiss()}
           />
         ) : (
           <View style={styles.emptyContainer}>
-            <Animated.View style={[styles.emptyIconContainer, emptyIconStyle]}>
-              <Ionicons name="film-outline" size={48} color="rgba(167, 139, 250, 0.5)" />
-            </Animated.View>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="search-outline" size={48} color={Colors.text.dimmed} />
+            </View>
             <Text style={styles.emptyTitle}>No movies found</Text>
-            <Text style={styles.emptySubtitle}>Try a different search term</Text>
+            <Text style={styles.emptySubtitle}>Try searching for something else</Text>
           </View>
         )}
       </SafeAreaView>
@@ -270,136 +252,158 @@ export default function Search() {
   );
 }
 
-// Filter Pill Component
-const FilterPill = ({ label, color, active = false }: { label: string; color: string; active?: boolean }) => {
-  const scale = useSharedValue(1);
-
-  const onPressIn = () => {
-    scale.value = withSpring(0.95, AnimationConfig.spring.snappy);
-  };
-
-  const onPressOut = () => {
-    scale.value = withSpring(1, AnimationConfig.spring.snappy);
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <TouchableOpacity onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={0.8}>
-      <Animated.View
-        style={[
-          styles.filterPill,
-          { backgroundColor: `${color}${active ? '30' : '15'}` },
-          animatedStyle,
-        ]}
-      >
-        <Text style={[styles.filterText, { color }]}>{label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
 const styles = StyleSheet.create({
-  header: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background.primary,
+  },
+  flex: {
+    flex: 1,
+  },
+  skeletonContainer: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 80,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 12,
+  },
+
+  // Search Bar - Clean Professional Design
+  searchWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  searchBlur: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 52,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    gap: 12,
+  },
+  searchInnerFocused: {
+    borderColor: Colors.primary[500],
+    backgroundColor: 'rgba(34, 211, 238, 0.05)',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
     color: Colors.text.primary,
+    paddingVertical: 0,
   },
-  countBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: ACCENT_DIM,
+  clearButton: {
+    padding: 4,
+  },
+
+  // 18+ Badge - Compact
+  adultBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  adultBadgeActive: {
+    backgroundColor: 'rgba(251, 113, 133, 0.2)',
+    borderColor: 'rgba(251, 113, 133, 0.4)',
+  },
+  adultText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.text.dimmed,
+  },
+  adultTextActive: {
+    color: Colors.accent.rose,
+  },
+
+  // Info Bar
+  infoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  infoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+  countPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34, 211, 238, 0.15)',
   },
   countText: {
     fontSize: 12,
     fontWeight: '600',
-    color: ACCENT_COLOR,
+    color: Colors.primary[400],
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: 'rgba(167, 139, 250, 0.08)',
-    borderWidth: 1.5,
-    shadowColor: ACCENT_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 4,
+  loadingIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary[400],
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: Colors.text.primary,
-  },
-  clearButton: {
-    width: 24,
-    height: 24,
+  filterButton: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(167, 139, 250, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  filterPill: {
+
+  // List
+  listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingTop: 4,
+    paddingBottom: 120,
   },
-  filterText: {
-    fontSize: 13,
-    fontWeight: '600',
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: ACCENT_COLOR,
-  },
+
+  // Empty State
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 100,
   },
-  emptyIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text.primary,
   },
@@ -407,56 +411,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text.dimmed,
     marginTop: 4,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  adultToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
-    borderRadius: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    height: 56,
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: 'rgba(167, 139, 250, 0.2)',
-  },
-  adultToggleActive: {
-    backgroundColor: 'rgba(251, 113, 133, 0.15)',
-    borderColor: 'rgba(251, 113, 133, 0.4)',
-  },
-  adultToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(167, 139, 250, 0.6)',
-  },
-  adultToggleTextActive: {
-    color: Colors.accent.rose,
-  },
-  toggleIndicator: {
-    width: 32,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(167, 139, 250, 0.2)',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleIndicatorActive: {
-    backgroundColor: 'rgba(251, 113, 133, 0.3)',
-  },
-  toggleDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: 'rgba(167, 139, 250, 0.5)',
-    alignSelf: 'flex-start',
-  },
-  toggleDotActive: {
-    backgroundColor: Colors.accent.rose,
-    alignSelf: 'flex-end',
   },
 });
