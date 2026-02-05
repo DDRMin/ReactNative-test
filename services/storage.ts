@@ -2,6 +2,7 @@ import { Movie } from '@/types/movie';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SAVED_MOVIES_KEY = '@saved_movies';
+const HAPTICS_ENABLED_KEY = '@haptics_enabled';
 
 export interface SavedMovie extends Movie {
     savedAt: string;
@@ -72,5 +73,26 @@ export const clearSavedMovies = async (): Promise<void> => {
         await AsyncStorage.removeItem(SAVED_MOVIES_KEY);
     } catch (error) {
         console.error('Error clearing saved movies:', error);
+    }
+};
+
+// Get haptics enabled preference
+export const getHapticsEnabled = async (): Promise<boolean> => {
+    try {
+        const value = await AsyncStorage.getItem(HAPTICS_ENABLED_KEY);
+        // Default to true if not set
+        return value !== null ? value === 'true' : true;
+    } catch (error) {
+        console.error('Error getting haptics preference:', error);
+        return true;
+    }
+};
+
+// Set haptics enabled preference
+export const setHapticsEnabled = async (enabled: boolean): Promise<void> => {
+    try {
+        await AsyncStorage.setItem(HAPTICS_ENABLED_KEY, enabled.toString());
+    } catch (error) {
+        console.error('Error setting haptics preference:', error);
     }
 };

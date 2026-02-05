@@ -1,3 +1,4 @@
+import { getHapticsEnabled } from '@/services/storage';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
@@ -10,7 +11,10 @@ import { Platform } from 'react-native';
  */
 
 // Light haptic - for subtle feedback
-export const hapticLight = () => {
+export const hapticLight = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     if (Platform.OS === 'android') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -19,7 +23,10 @@ export const hapticLight = () => {
 };
 
 // Medium haptic - for button presses and confirmations
-export const hapticMedium = () => {
+export const hapticMedium = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     if (Platform.OS === 'android') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     } else {
@@ -28,7 +35,10 @@ export const hapticMedium = () => {
 };
 
 // Heavy haptic - for important actions
-export const hapticHeavy = () => {
+export const hapticHeavy = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     if (Platform.OS === 'android') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else {
@@ -37,7 +47,10 @@ export const hapticHeavy = () => {
 };
 
 // Selection haptic - for picker/list selections
-export const hapticSelection = () => {
+export const hapticSelection = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     if (Platform.OS === 'android') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -46,7 +59,10 @@ export const hapticSelection = () => {
 };
 
 // Tab press haptic - for navigation tabs
-export const hapticTabPress = () => {
+export const hapticTabPress = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     if (Platform.OS === 'android') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -55,16 +71,25 @@ export const hapticTabPress = () => {
 };
 
 // Warning notification haptic
-export const hapticWarning = () => {
+export const hapticWarning = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 };
 
 // Success notification haptic
-export const hapticSuccess = () => {
+export const hapticSuccess = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 };
 
 // Error notification haptic
-export const hapticError = () => {
+export const hapticError = async () => {
+    const enabled = await getHapticsEnabled();
+    if (!enabled) return;
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 };
