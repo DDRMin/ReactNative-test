@@ -64,6 +64,8 @@ jobs:
         run: npm ci
 
       - name: Publish OTA Update
+        env:
+          EXPO_PUBLIC_MOVIE_API_KEY: ${{ secrets.EXPO_PUBLIC_MOVIE_API_KEY }}
         run: eas update --branch qa --message "${{ github.event.head_commit.message }}"
 
   # JOB 3: EAS CLOUD BUILD (only for native changes)
