@@ -51,6 +51,7 @@ const SettingItem = ({
   useEffect(() => {
     opacity.value = withDelay(delay, withTiming(1, { duration: AnimationConfig.duration.normal }));
     translateX.value = withDelay(delay, withSpring(0, AnimationConfig.spring.gentle));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -111,6 +112,7 @@ const StatCard = ({ icon, value, label, color, bgColor, delay = 0 }: StatCardPro
       delay + 200,
       withTiming(value, { duration: 1200, easing: Easing.out(Easing.cubic) })
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const containerStyle = useAnimatedStyle(() => ({
@@ -149,6 +151,7 @@ export default function Profile() {
     
     // Load haptics preference
     loadHapticsPreference();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadHapticsPreference = async () => {
