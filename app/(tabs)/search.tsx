@@ -157,9 +157,9 @@ export default function Search() {
       setLoading(true);
       try {
         if (query.trim().length > 0) {
-          // Text search - sort by vote_average ascending
+          // Text search - sort by vote_average descending
           const results = await searchMovies(query, 1, includeAdult);
-          const sortedResults = [...results.results].sort((a, b) => a.vote_average - b.vote_average);
+          const sortedResults = [...results.results].sort((a, b) => b.vote_average - a.vote_average);
           setMovies(sortedResults);
         } else {
           // No query - use discover with filters
