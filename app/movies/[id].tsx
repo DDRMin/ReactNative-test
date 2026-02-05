@@ -2,6 +2,7 @@ import AmbientBackground from '@/components/AmbientBackground';
 import TrailerModal from '@/components/TrailerModal';
 import { useSavedMovies } from '@/contexts/SavedMoviesContext';
 import { getImageUrl, getMovieCredits, getMovieDetails, getMovieVideos } from '@/services/api';
+import { AnimationConfig, BlurIntensity, Colors, Gradients, Shadows } from '@/theme/constants';
 import { Cast, Movie, Video } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -9,8 +10,20 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
+    interpolate,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withSequence,
+    withSpring,
+    withTiming
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const MovieDetails = () => {
     const { id } = useLocalSearchParams();
@@ -22,6 +35,13 @@ const MovieDetails = () => {
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+
+    // Animation values
+    const scrollY = useSharedValue(0);
+    const contentOpacity = useSharedValue(0);
+    const contentTranslateY = useSharedValue(40);
+    const playButtonGlow = useSharedValue(0.3);
+    const heartScale = useSharedValue(1);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -39,6 +59,13 @@ const MovieDetails = () => {
 
                 const trailerVideo = videosData.results?.find((v: Video) => v.type === 'Trailer' && v.site === 'YouTube');
                 setTrailer(trailerVideo?.key || null);
+
+                // Start entrance animations
+                contentOpacity.value = withDelay(200, withTiming(1, { duration: AnimationConfig.duration.normal }));
+                contentTranslateY.value = withDelay(200, withSpring(0, AnimationConfig.spring.gentle));
+
+                // Static play button glow - removed infinite animation for performance
+                playButtonGlow.value = withTiming(0.4, { duration: 500 });
             } catch (error) {
                 console.error("Error fetching details:", error);
             } finally {
@@ -53,6 +80,12 @@ const MovieDetails = () => {
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+        // Heart bounce animation
+        heartScale.value = withSequence(
+            withTiming(1.3, { duration: 100 }),
+            withSpring(1, AnimationConfig.spring.bouncy)
+        );
+
         if (isSaved) {
             await removeMovie(movie.id);
             setIsSaved(false);
@@ -66,24 +99,52 @@ const MovieDetails = () => {
         if (trailer) {
             setModalVisible(true);
         } else {
-            Alert.alert("Sorry", "No trailer available for this movie.");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         }
     };
 
+    const scrollHandler = useAnimatedScrollHandler({
+        onScroll: (event) => {
+            scrollY.value = event.contentOffset.y;
+        },
+    });
+
+    // Parallax effect for backdrop
+    const backdropStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: interpolate(scrollY.value, [-100, 0, 200], [50, 0, -50]) }],
+    }));
+
+    const contentStyle = useAnimatedStyle(() => ({
+        opacity: contentOpacity.value,
+        transform: [{ translateY: contentTranslateY.value }],
+    }));
+
+    const playButtonGlowStyle = useAnimatedStyle(() => ({
+        shadowOpacity: playButtonGlow.value,
+    }));
+
+    const heartStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: heartScale.value }],
+    }));
+
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#050810' }}>
+            <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
                 <AmbientBackground />
-                <ActivityIndicator size="large" color="#22d3ee" />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.primary[400]} />
+                </View>
             </View>
         );
     }
 
     if (!movie) {
         return (
-            <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#050810' }}>
+            <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
                 <AmbientBackground />
-                <Text className="text-cyan-50">Movie not found</Text>
+                <View style={styles.loadingContainer}>
+                    <Text style={{ color: Colors.text.primary }}>Movie not found</Text>
+                </View>
             </View>
         );
     }
@@ -92,7 +153,7 @@ const MovieDetails = () => {
     const posterUrl = getImageUrl(movie.poster_path);
 
     return (
-        <View className="flex-1" style={{ backgroundColor: '#050810' }}>
+        <View className="flex-1" style={{ backgroundColor: Colors.background.primary }}>
             <AmbientBackground />
             <TrailerModal
                 visible={modalVisible}
@@ -100,190 +161,397 @@ const MovieDetails = () => {
                 onClose={() => setModalVisible(false)}
                 movieTitle={movie.title}
             />
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                {/* Header / Backdrop */}
-                <View className="relative w-full aspect-video">
-                    <ImageBackground
-                        source={{ uri: backdropUrl || posterUrl || '' }}
-                        className="absolute inset-0 bg-center bg-cover"
-                    >
-                        <LinearGradient
-                            colors={['transparent', 'rgba(5, 8, 16, 0.3)', 'rgba(5, 8, 16, 0.85)']}
-                            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '100%' }}
-                            locations={[0, 0.6, 1]}
-                        />
-                        <SafeAreaView className="absolute top-0 left-0 w-full p-4 flex-row justify-between" edges={['top']}>
-                            <TouchableOpacity
-                                onPress={() => router.back()}
-                                style={styles.headerButton}
-                            >
-                                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                                <Ionicons name="arrow-back" size={24} color="#67e8f9" />
-                            </TouchableOpacity>
 
-                            {/* Save Button */}
-                            <TouchableOpacity
-                                onPress={handleSaveToggle}
-                                style={[styles.headerButton, isSaved && styles.savedButton]}
-                            >
-                                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                                {isSaved && (
-                                    <LinearGradient
-                                        colors={['rgba(244, 63, 94, 0.3)', 'rgba(251, 113, 133, 0.1)']}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                )}
+            <AnimatedScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+            >
+                {/* Header / Backdrop with Parallax */}
+                <View style={styles.backdropContainer}>
+                    <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+                        <ImageBackground
+                            source={{ uri: backdropUrl || posterUrl || '' }}
+                            style={StyleSheet.absoluteFill}
+                            resizeMode="cover"
+                        >
+                            <LinearGradient
+                                colors={['transparent', 'rgba(5, 8, 16, 0.3)', 'rgba(5, 8, 16, 0.85)']}
+                                style={StyleSheet.absoluteFill}
+                                locations={[0, 0.6, 1]}
+                            />
+                        </ImageBackground>
+                    </Animated.View>
+
+                    {/* Navigation Buttons */}
+                    <SafeAreaView style={styles.navBar} edges={['top']}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+                            <BlurView intensity={BlurIntensity.strong} tint="dark" style={StyleSheet.absoluteFill} />
+                            <Ionicons name="arrow-back" size={24} color={Colors.primary[300]} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleSaveToggle}
+                            style={[styles.navButton, isSaved && styles.savedButton]}
+                        >
+                            <BlurView intensity={BlurIntensity.strong} tint="dark" style={StyleSheet.absoluteFill} />
+                            {isSaved && (
+                                <LinearGradient
+                                    colors={['rgba(244, 63, 94, 0.3)', 'rgba(251, 113, 133, 0.1)']}
+                                    style={StyleSheet.absoluteFill}
+                                />
+                            )}
+                            <Animated.View style={heartStyle}>
                                 <Ionicons
                                     name={isSaved ? "heart" : "heart-outline"}
                                     size={24}
-                                    color={isSaved ? "#fb7185" : "#67e8f9"}
+                                    color={isSaved ? Colors.accent.rose : Colors.primary[300]}
                                 />
-                            </TouchableOpacity>
-                        </SafeAreaView>
-                    </ImageBackground>
+                            </Animated.View>
+                        </TouchableOpacity>
+                    </SafeAreaView>
                 </View>
 
                 {/* Content */}
-                <View className="px-6 -mt-12">
-                    <View className="flex-row gap-4 mb-6">
-                        {/* Poster */}
+                <Animated.View style={[styles.content, contentStyle]}>
+                    {/* Poster and Info */}
+                    <View style={styles.posterRow}>
                         <Image
                             source={{ uri: posterUrl || '' }}
-                            className="w-32 aspect-[2/3] rounded-xl shadow-lg"
-                            style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}
+                            style={styles.poster}
                         />
-                        {/* Info */}
-                        <View className="flex-1 justify-end pb-2">
-                            <Text className="text-2xl font-bold text-cyan-50 mb-1">{movie.title}</Text>
-                            {movie.tagline ? <Text className="text-cyan-400/60 text-sm italic mb-2">{movie.tagline}</Text> : null}
-
-                            <View className="flex-row flex-wrap gap-2">
-                                {movie.genres?.map(g => (
-                                    <BlurView key={g.id} intensity={20} tint="dark" className="px-2 py-1 rounded-md overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}>
-                                        <Text className="text-xs text-cyan-300">{g.name}</Text>
-                                    </BlurView>
+                        <View style={styles.infoContainer}>
+                            <Text style={styles.title}>{movie.title}</Text>
+                            {movie.tagline && (
+                                <Text style={styles.tagline}>{movie.tagline}</Text>
+                            )}
+                            <View style={styles.genreContainer}>
+                                {movie.genres?.slice(0, 3).map(g => (
+                                    <View key={g.id} style={styles.genreBadge}>
+                                        <Text style={styles.genreText}>{g.name}</Text>
+                                    </View>
                                 ))}
                             </View>
                         </View>
                     </View>
 
-                    {/* Stats */}
-                    <BlurView intensity={30} tint="dark" className="flex-row justify-between p-4 rounded-xl mb-6 overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.15)' }}>
-                        <View className="items-center">
-                            <Ionicons name="star" size={20} color="#FACC15" />
-                            <Text className="text-cyan-50 font-bold mt-1">{movie.vote_average?.toFixed(1)}<Text className="text-xs text-cyan-400/50">/10</Text></Text>
+                    {/* Stats Card */}
+                    <BlurView intensity={BlurIntensity.medium} tint="dark" style={styles.statsCard}>
+                        <View style={styles.statItem}>
+                            <Ionicons name="star" size={22} color={Colors.star} />
+                            <Text style={styles.statValue}>
+                                {movie.vote_average?.toFixed(1)}
+                                <Text style={styles.statSuffix}>/10</Text>
+                            </Text>
+                            <Text style={styles.statLabel}>Rating</Text>
                         </View>
-                        <View className="items-center">
-                            <Ionicons name="time-outline" size={20} color="#67e8f9" />
-                            <Text className="text-cyan-50 font-bold mt-1">{movie.runtime}m</Text>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Ionicons name="time-outline" size={22} color={Colors.primary[300]} />
+                            <Text style={styles.statValue}>{movie.runtime}m</Text>
+                            <Text style={styles.statLabel}>Duration</Text>
                         </View>
-                        <View className="items-center">
-                            <Ionicons name="calendar-outline" size={20} color="#67e8f9" />
-                            <Text className="text-cyan-50 font-bold mt-1">{movie.release_date?.split('-')[0]}</Text>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Ionicons name="calendar-outline" size={22} color={Colors.primary[300]} />
+                            <Text style={styles.statValue}>{movie.release_date?.split('-')[0]}</Text>
+                            <Text style={styles.statLabel}>Year</Text>
                         </View>
                     </BlurView>
 
-                    {/* Overview */}
-                    <Text className="text-xl font-bold text-cyan-50 mb-2">Storyline</Text>
-                    <Text className="text-cyan-300/70 leading-6 mb-8">{movie.overview}</Text>
+                    {/* Storyline */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Storyline</Text>
+                        <Text style={styles.overview}>{movie.overview}</Text>
+                    </View>
 
                     {/* Cast */}
-                    <Text className="text-xl font-bold text-cyan-50 mb-4">Cast</Text>
-                    <FlatList
-                        data={cast}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <View className="mr-4 w-20 items-center">
-                                <Image
-                                    source={{ uri: getImageUrl(item.profile_path) || 'https://via.placeholder.com/100' }}
-                                    className="w-16 h-16 rounded-full mb-2"
-                                    style={{ borderWidth: 1, borderColor: 'rgba(34, 211, 238, 0.2)' }}
-                                />
-                                <Text className="text-cyan-50 text-xs font-medium text-center" numberOfLines={2}>{item.name}</Text>
-                                <Text className="text-cyan-400/40 text-[10px] text-center" numberOfLines={1}>{item.character}</Text>
-                            </View>
-                        )}
-                        className="mb-8"
-                    />
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Cast</Text>
+                        <FlatList
+                            data={cast.slice(0, 10)}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({ item, index }) => (
+                                <CastMember cast={item} index={index} />
+                            )}
+                        />
+                    </View>
 
                     {/* Action Buttons */}
-                    <View className="flex-row gap-3 mb-8">
-                        <TouchableOpacity
-                            className="flex-1 rounded-2xl overflow-hidden"
-                            activeOpacity={0.8}
-                            onPress={handleWatchTrailer}
-                            style={{
-                                shadowColor: '#22d3ee',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 12,
-                            }}
-                        >
-                            <LinearGradient
-                                colors={['#0891b2', '#0e7490']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                className="py-4 px-6 flex-row items-center justify-center gap-3"
+                    <View style={styles.buttonRow}>
+                        <Animated.View style={[styles.playButtonGlow, playButtonGlowStyle]}>
+                            <TouchableOpacity
+                                style={styles.playButton}
+                                onPress={handleWatchTrailer}
+                                activeOpacity={0.85}
                             >
-                                <Ionicons name="play-circle" size={26} color="#ecfeff" />
-                                <Text className="text-cyan-50 font-bold text-lg tracking-wide">Watch Trailer</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
+                                <LinearGradient
+                                    colors={Gradients.primaryButton}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
+                                <Ionicons name="play-circle" size={28} color={Colors.text.primary} />
+                                <Text style={styles.playButtonText}>Watch Trailer</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
 
                         <TouchableOpacity
                             onPress={handleSaveToggle}
                             activeOpacity={0.8}
-                            style={{
-                                shadowColor: isSaved ? '#f43f5e' : 'transparent',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: isSaved ? 0.4 : 0,
-                                shadowRadius: 12,
-                            }}
+                            style={[styles.heartButton, isSaved && styles.heartButtonSaved]}
                         >
-                            <View
-                                className="w-14 h-14 rounded-2xl overflow-hidden items-center justify-center"
-                                style={{ borderWidth: 1.5, borderColor: isSaved ? '#fb7185' : 'rgba(34, 211, 238, 0.2)' }}
-                            >
-                                {isSaved ? (
-                                    <LinearGradient
-                                        colors={['#f43f5e', '#e11d48']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                ) : (
-                                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                                )}
-                                <Ionicons
-                                    name={isSaved ? "heart" : "heart-outline"}
-                                    size={26}
-                                    color={isSaved ? "#fff" : "#67e8f9"}
+                            {isSaved ? (
+                                <LinearGradient
+                                    colors={Gradients.rose}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFill}
                                 />
-                            </View>
+                            ) : (
+                                <BlurView intensity={BlurIntensity.strong} tint="dark" style={StyleSheet.absoluteFill} />
+                            )}
+                            <Ionicons
+                                name={isSaved ? "heart" : "heart-outline"}
+                                size={26}
+                                color={isSaved ? "#fff" : Colors.primary[300]}
+                            />
                         </TouchableOpacity>
                     </View>
-
-                </View>
-            </ScrollView>
+                </Animated.View>
+            </AnimatedScrollView>
         </View>
     );
-}
+};
+
+// Animated Cast Member
+const CastMember = ({ cast, index }: { cast: Cast; index: number }) => {
+    const opacity = useSharedValue(0);
+    const translateY = useSharedValue(20);
+
+    useEffect(() => {
+        opacity.value = withDelay(index * 50, withTiming(1, { duration: AnimationConfig.duration.normal }));
+        translateY.value = withDelay(index * 50, withSpring(0, AnimationConfig.spring.gentle));
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+        transform: [{ translateY: translateY.value }],
+    }));
+
+    return (
+        <Animated.View style={[styles.castMember, animatedStyle]}>
+            <Image
+                source={{ uri: getImageUrl(cast.profile_path) || 'https://via.placeholder.com/100' }}
+                style={styles.castImage}
+            />
+            <Text style={styles.castName} numberOfLines={2}>{cast.name}</Text>
+            <Text style={styles.castCharacter} numberOfLines={1}>{cast.character}</Text>
+        </Animated.View>
+    );
+};
 
 const styles = StyleSheet.create({
-    headerButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    backdropContainer: {
+        width: '100%',
+        aspectRatio: 16 / 9,
+        overflow: 'hidden',
+    },
+    navBar: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        padding: 16,
+    },
+    navButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(34, 211, 238, 0.2)',
+        borderColor: Colors.glass.border,
     },
     savedButton: {
         borderColor: 'rgba(251, 113, 133, 0.5)',
+    },
+    content: {
+        paddingHorizontal: 20,
+        marginTop: -48,
+    },
+    posterRow: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 20,
+    },
+    poster: {
+        width: 120,
+        aspectRatio: 2 / 3,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: Colors.glass.border,
+        ...Shadows.card,
+    },
+    infoContainer: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        paddingBottom: 8,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: Colors.text.primary,
+        marginBottom: 4,
+    },
+    tagline: {
+        fontSize: 14,
+        fontStyle: 'italic',
+        color: Colors.text.muted,
+        marginBottom: 12,
+    },
+    genreContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    genreBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: Colors.glass.medium,
+        borderWidth: 1,
+        borderColor: Colors.glass.border,
+    },
+    genreText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.primary[300],
+    },
+    statsCard: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        padding: 20,
+        borderRadius: 20,
+        marginBottom: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: Colors.glass.border,
+    },
+    statItem: {
+        alignItems: 'center',
+        gap: 6,
+    },
+    statValue: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.text.primary,
+    },
+    statSuffix: {
+        fontSize: 12,
+        color: Colors.text.dimmed,
+    },
+    statLabel: {
+        fontSize: 11,
+        color: Colors.text.dimmed,
+    },
+    statDivider: {
+        width: 1,
+        height: 40,
+        backgroundColor: Colors.glass.border,
+    },
+    section: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.text.primary,
+        marginBottom: 12,
+    },
+    overview: {
+        fontSize: 15,
+        lineHeight: 24,
+        color: Colors.text.muted,
+    },
+    castMember: {
+        width: 80,
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    castImage: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: Colors.glass.border,
+    },
+    castName: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.text.primary,
+        textAlign: 'center',
+    },
+    castCharacter: {
+        fontSize: 10,
+        color: Colors.text.dimmed,
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    playButtonGlow: {
+        flex: 1,
+        borderRadius: 18,
+        shadowColor: Colors.primary[400],
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    playButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 56,
+        borderRadius: 18,
+        overflow: 'hidden',
+        gap: 12,
+    },
+    playButtonText: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: Colors.text.primary,
+    },
+    heartButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: Colors.glass.border,
+    },
+    heartButtonSaved: {
+        borderColor: Colors.accent.rose,
+        ...Shadows.glow.rose,
     },
 });
 

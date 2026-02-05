@@ -1,42 +1,141 @@
+import { BlurIntensity, Colors } from '@/theme/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const HomeHeader = () => {
+/**
+ * Simplified HomeHeader with:
+ * - App logo and name "OD Movies"
+ * - Notification and search buttons
+ * - No heavy animations for better performance
+ */
+const HomeHeader = memo(() => {
   const router = useRouter();
 
   return (
-    <BlurView intensity={30} tint="dark" className="flex-row items-center justify-between px-6 py-4" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(34, 211, 238, 0.1)' }}>
-      <View className="flex-row items-center gap-3">
-        <View className="relative">
+    <BlurView
+      intensity={BlurIntensity.medium}
+      tint="dark"
+      style={styles.container}
+    >
+      <View style={styles.leftSection}>
+        {/* App Logo */}
+        <View style={styles.logoContainer}>
           <Image
-            source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuCdKTYziTXf2mT_tNq2fZ7kBw87eo8-EXSdU6sWEBBxzAV3VOZgIbZv1GcoGH1J-GuFfSEeTvWnut1cjajsuqrnQHGv3KjEsmYKVDJRBuUzguA1xpjQE7sprva_oY3EM0GWhoxU5bvYF5cwxwVo6Qr2Qfap_PEMqnl0pVP_oJxL4QZhTzo3O853K82EjAGEm5YcGmNcG_EioIv3zeoZyHdfMi3LVoser3iDO9ReNnnyAJxV9Sa19qIDiqi4XFWYH8wmNgEFC0MFC0Q" }}
-            className="w-10 h-10 rounded-full"
-            style={{ borderWidth: 2, borderColor: 'rgba(34, 211, 238, 0.5)' }}
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
           />
-          <View className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full" style={{ borderWidth: 2, borderColor: '#050810' }} />
         </View>
+
+        {/* App Name */}
         <View>
-          <Text className="text-xs text-cyan-400/60 font-medium mb-1">Welcome back,</Text>
-          <Text className="text-cyan-50 text-base font-bold">Alex Morgan</Text>
+          <Text style={styles.appName}>OD Movies</Text>
+          <Text style={styles.tagline}>Discover & Stream</Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        className="w-10 h-10 rounded-full items-center justify-center"
-        style={{
-          backgroundColor: 'rgba(34, 211, 238, 0.1)',
-          borderWidth: 1,
-          borderColor: 'rgba(34, 211, 238, 0.2)'
-        }}
-        onPress={() => router.push('/search')}
-      >
-        <Ionicons name="search" size={20} color="#67e8f9" />
-      </TouchableOpacity>
+      {/* Search & Notifications */}
+      <View style={styles.rightSection}>
+        {/* Notification */}
+        <TouchableOpacity style={styles.iconButton}>
+          <Ionicons name="notifications-outline" size={22} color={Colors.primary[300]} />
+          <View style={styles.notificationDot} />
+        </TouchableOpacity>
+
+        {/* Search Button */}
+        <TouchableOpacity
+          style={styles.searchButton}
+          onPress={() => router.push('/search')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="search" size={20} color={Colors.text.primary} />
+        </TouchableOpacity>
+      </View>
     </BlurView>
   );
-};
+});
+
+HomeHeader.displayName = 'HomeHeader';
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.glass.light,
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.glass.light,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.glass.border,
+  },
+  logo: {
+    width: 32,
+    height: 32,
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.text.muted,
+    marginTop: 1,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.glass.light,
+    borderWidth: 1,
+    borderColor: Colors.glass.border,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent.rose,
+    borderWidth: 1,
+    borderColor: Colors.background.primary,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary[600],
+  },
+});
 
 export default HomeHeader;

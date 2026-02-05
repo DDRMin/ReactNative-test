@@ -3,21 +3,19 @@ import ComingSoonCard from '@/components/ComingSoonCard';
 import HomeHeader from '@/components/HomeHeader';
 import MovieCard from '@/components/MovieCard';
 import MovieHero from '@/components/MovieHero';
+import SectionHeader from '@/components/SectionHeader';
+import { HeroSkeleton, MovieCardSkeleton } from '@/components/ShimmerPlaceholder';
 import { getGenres, getMovieVideos, getMoviesByGenre, getNowPlayingMovies, getTrendingMovies, getUpcomingMovies } from '@/services/api';
+import { GenreAccents } from '@/theme/constants';
 import { Genre, Movie, Video } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Genre accent colors for variety
-const genreAccents: Record<number, { color: string; bgColor: string }> = {
-    28: { color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' },     // Action - Red
-    12: { color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.15)' },    // Adventure - Orange  
-    27: { color: '#a855f7', bgColor: 'rgba(168, 85, 247, 0.15)' },    // Horror - Purple
-    10752: { color: '#64748b', bgColor: 'rgba(100, 116, 139, 0.15)' }, // War - Slate
-};
+// Limit movies per section for performance (TMDB returns 20, we only need 10)
+const MOVIES_PER_SECTION = 10;
 
 export default function Index() {
     const router = useRouter();
@@ -43,23 +41,24 @@ export default function Index() {
                 getMoviesByGenre(10752),
             ]);
 
-            const trendingMovies = trendingData.results;
+            const trendingMovies = trendingData.results.slice(0, MOVIES_PER_SECTION);
             setTrending(trendingMovies);
-            setNowPlaying(nowPlayingData.results);
-            setUpcoming(upcomingData.results);
+            setNowPlaying(nowPlayingData.results.slice(0, MOVIES_PER_SECTION));
+            setUpcoming(upcomingData.results.slice(0, MOVIES_PER_SECTION));
 
+            // Limit genre movies to improve render performance
             setGenreMovies({
-                28: actionData.results,
-                12: adventureData.results,
-                27: horrorData.results,
-                10752: warData.results
+                28: actionData.results.slice(0, MOVIES_PER_SECTION),
+                12: adventureData.results.slice(0, MOVIES_PER_SECTION),
+                27: horrorData.results.slice(0, MOVIES_PER_SECTION),
+                10752: warData.results.slice(0, MOVIES_PER_SECTION)
             });
 
             const genreMap: Record<number, string> = {};
             genresData.genres.forEach((g: Genre) => genreMap[g.id] = g.name);
             setGenres(genreMap);
 
-            // Fetch trailer for the first trending movie (Hero)
+            // Fetch trailer for hero
             if (trendingMovies.length > 0) {
                 const videosData = await getMovieVideos(trendingMovies[0].id);
                 const trailer = videosData.results?.find((v: Video) => v.type === 'Trailer' && v.site === 'YouTube');
@@ -78,16 +77,40 @@ export default function Index() {
         loadData();
     }, []);
 
-    const onRefresh = () => {
+    const onRefresh = useCallback(() => {
         setRefreshing(true);
         loadData();
-    };
+    }, []);
 
+    // Memoized render functions for FlatList optimization
+    const renderMovieCard = useCallback(({ item, index }: { item: Movie; index: number }) => (
+        <MovieCard movie={item} genres={genres} index={index} />
+    ), [genres]);
+
+    const renderComingSoonCard = useCallback(({ item }: { item: Movie }) => (
+        <ComingSoonCard movie={item} genres={genres} />
+    ), [genres]);
+
+    const keyExtractor = useCallback((item: Movie) => item.id.toString(), []);
+
+    // Loading state with premium skeletons
     if (loading) {
         return (
-            <View className="flex-1 bg-background items-center justify-center">
+            <View className="flex-1 bg-background">
                 <AmbientBackground />
-                <ActivityIndicator size="large" color="#22d3ee" />
+                <SafeAreaView className="flex-1" edges={['top']} style={{ zIndex: 1 }}>
+                    <HomeHeader />
+                    <ScrollView className="flex-1 px-4 pt-6" contentContainerStyle={{ paddingBottom: 140 }}>
+                        <HeroSkeleton />
+                        <View className="mb-8">
+                            <View className="flex-row gap-4 mb-4">
+                                {[1, 2, 3].map((i) => (
+                                    <MovieCardSkeleton key={i} />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                </SafeAreaView>
             </View>
         );
     }
@@ -102,8 +125,9 @@ export default function Index() {
                     contentContainerStyle={{ paddingBottom: 140 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22d3ee" />}
                     showsVerticalScrollIndicator={false}
+                    removeClippedSubviews={true}
                 >
-                    {/* Hero Section - Top Trending Movie */}
+                    {/* Hero Section */}
                     {trending.length > 0 && (
                         <MovieHero
                             movie={trending[0]}
@@ -112,102 +136,90 @@ export default function Index() {
                         />
                     )}
 
-                    {/* Now Playing Carousel */}
-                    <View className="mb-8">
-                        <View className="flex-row items-center justify-between mb-4 px-2">
-                            <View className="flex-row items-center gap-2">
-                                <View
-                                    className="w-8 h-8 rounded-lg items-center justify-center"
-                                    style={{ backgroundColor: 'rgba(34, 211, 238, 0.15)' }}
-                                >
-                                    <Ionicons name="play-circle" size={18} color="#22d3ee" />
-                                </View>
-                                <Text className="text-xl font-bold text-cyan-50 tracking-tight">Now Playing</Text>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => router.push('/movies/now-playing')}
-                                className="px-3 py-1.5 rounded-full"
-                                style={{ backgroundColor: 'rgba(34, 211, 238, 0.1)' }}
-                            >
-                                <Text className="text-sm text-cyan-400 font-medium">See All</Text>
-                            </TouchableOpacity>
-                        </View>
+                    {/* Now Playing Section */}
+                    <View className="mb-10">
+                        <SectionHeader
+                            title="Now Playing"
+                            icon="play-circle"
+                            iconColor="#22d3ee"
+                            iconBgColor="rgba(34, 211, 238, 0.15)"
+                            onSeeAll={() => router.push('/movies/now-playing')}
+                        />
                         <FlatList
                             data={nowPlaying}
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => <MovieCard movie={item} genres={genres} />}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderMovieCard}
                             contentContainerStyle={{ paddingHorizontal: 8 }}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={5}
+                            windowSize={5}
+                            initialNumToRender={4}
                         />
                     </View>
 
-                    {/* Genre Lists with Colored Icons */}
+                    {/* Genre Sections */}
                     {genreMovies[28] && (
-                        <GenreListWithIcon
+                        <GenreSection
                             title="Action"
                             genreId={28}
                             movies={genreMovies[28]}
                             genres={genres}
-                            icon="flame"
-                            accent={genreAccents[28]}
-                            router={router}
-                        />
-                    )}
-                    {genreMovies[12] && (
-                        <GenreListWithIcon
-                            title="Adventure"
-                            genreId={12}
-                            movies={genreMovies[12]}
-                            genres={genres}
-                            icon="compass"
-                            accent={genreAccents[12]}
-                            router={router}
-                        />
-                    )}
-                    {genreMovies[27] && (
-                        <GenreListWithIcon
-                            title="Horror"
-                            genreId={27}
-                            movies={genreMovies[27]}
-                            genres={genres}
-                            icon="skull"
-                            accent={genreAccents[27]}
-                            router={router}
-                        />
-                    )}
-                    {genreMovies[10752] && (
-                        <GenreListWithIcon
-                            title="War"
-                            genreId={10752}
-                            movies={genreMovies[10752]}
-                            genres={genres}
-                            icon="shield"
-                            accent={genreAccents[10752]}
                             router={router}
                         />
                     )}
 
-                    {/* Coming Soon Carousel */}
+                    {genreMovies[12] && (
+                        <GenreSection
+                            title="Adventure"
+                            genreId={12}
+                            movies={genreMovies[12]}
+                            genres={genres}
+                            router={router}
+                        />
+                    )}
+
+                    {genreMovies[27] && (
+                        <GenreSection
+                            title="Horror"
+                            genreId={27}
+                            movies={genreMovies[27]}
+                            genres={genres}
+                            router={router}
+                        />
+                    )}
+
+                    {genreMovies[10752] && (
+                        <GenreSection
+                            title="War"
+                            genreId={10752}
+                            movies={genreMovies[10752]}
+                            genres={genres}
+                            router={router}
+                        />
+                    )}
+
+                    {/* Coming Soon Section */}
                     <View className="mb-4">
-                        <View className="flex-row items-center justify-between mb-4 px-2">
-                            <View className="flex-row items-center gap-2">
-                                <View
-                                    className="w-8 h-8 rounded-lg items-center justify-center"
-                                    style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)' }}
-                                >
-                                    <Ionicons name="calendar" size={18} color="#4ade80" />
-                                </View>
-                                <Text className="text-xl font-bold text-cyan-50 tracking-tight">Coming Soon</Text>
-                            </View>
-                        </View>
+                        <SectionHeader
+                            title="Coming Soon"
+                            icon="calendar"
+                            iconColor="#4ade80"
+                            iconBgColor="rgba(74, 222, 128, 0.15)"
+                            showSeeAll={false}
+                        />
                         <FlatList
                             data={upcoming}
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => <ComingSoonCard movie={item} genres={genres} />}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderComingSoonCard}
                             contentContainerStyle={{ paddingHorizontal: 8 }}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={4}
+                            windowSize={5}
+                            initialNumToRender={3}
                         />
                     </View>
                 </ScrollView>
@@ -216,44 +228,47 @@ export default function Index() {
     );
 }
 
-// Genre List with Colored Icon Header
-interface GenreListWithIconProps {
+// Optimized Genre Section Component
+interface GenreSectionProps {
     title: string;
     genreId: number;
     movies: Movie[];
     genres: Record<number, string>;
-    icon: React.ComponentProps<typeof Ionicons>['name'];
-    accent: { color: string; bgColor: string };
     router: ReturnType<typeof useRouter>;
 }
 
-const GenreListWithIcon = ({ title, genreId, movies, genres, icon, accent, router }: GenreListWithIconProps) => (
-    <View className="mb-8">
-        <View className="flex-row items-center justify-between mb-4 px-2">
-            <View className="flex-row items-center gap-2">
-                <View
-                    className="w-8 h-8 rounded-lg items-center justify-center"
-                    style={{ backgroundColor: accent.bgColor }}
-                >
-                    <Ionicons name={icon} size={18} color={accent.color} />
-                </View>
-                <Text className="text-xl font-bold text-cyan-50 tracking-tight">{title}</Text>
-            </View>
-            <TouchableOpacity
-                onPress={() => router.push({ pathname: '/genre/[id]', params: { id: genreId, name: title } })}
-                className="px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: accent.bgColor }}
-            >
-                <Text style={{ color: accent.color }} className="text-sm font-medium">See All</Text>
-            </TouchableOpacity>
+const GenreSection = React.memo(({ title, genreId, movies, genres, router }: GenreSectionProps) => {
+    const accent = GenreAccents[genreId] || { color: '#22d3ee', bgColor: 'rgba(34, 211, 238, 0.15)', icon: 'film' };
+
+    const renderItem = useCallback(({ item, index }: { item: Movie; index: number }) => (
+        <MovieCard movie={item} genres={genres} index={index} />
+    ), [genres]);
+
+    const keyExtractor = useCallback((item: Movie) => item.id.toString(), []);
+
+    return (
+        <View className="mb-10">
+            <SectionHeader
+                title={title}
+                icon={accent.icon as React.ComponentProps<typeof Ionicons>['name']}
+                iconColor={accent.color}
+                iconBgColor={accent.bgColor}
+                seeAllColor={accent.color}
+                onSeeAll={() => router.push({ pathname: '/genre/[id]', params: { id: genreId, name: title } })}
+            />
+            <FlatList
+                data={movies}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
+                contentContainerStyle={{ paddingHorizontal: 8 }}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                initialNumToRender={4}
+            />
         </View>
-        <FlatList
-            data={movies}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => <MovieCard movie={item} genres={genres} />}
-            contentContainerStyle={{ paddingHorizontal: 8 }}
-        />
-    </View>
-);
+    );
+});
+

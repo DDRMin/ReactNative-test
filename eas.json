@@ -1,0 +1,24 @@
+{
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "qa": {
+      "android": {
+        "buildType": "apk",
+        "autoIncrement": "versionCode"
+      },
+      "env": {
+        "APP_VARIANT": "qa"
+      },
+      "distribution": "internal",
+      "channel": "qa"
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "channel": "production"
+    }
+  }
+}
