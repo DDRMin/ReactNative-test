@@ -3,6 +3,7 @@ import { getImageUrl, getMoviesByGenre } from '@/services/api';
 import { Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -10,7 +11,6 @@ import {
     ActivityIndicator,
     Dimensions,
     FlatList,
-    Image,
     RefreshControl,
     StyleSheet,
     Text,
@@ -93,8 +93,10 @@ const GenreScreen = () => {
             <View className="relative rounded-xl overflow-hidden" style={{ aspectRatio: 2 / 3 }}>
                 <Image
                     source={{ uri: getImageUrl(item.poster_path) || '' }}
-                    className="absolute inset-0 w-full h-full"
-                    resizeMode="cover"
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
                 />
                 {/* Gradient overlay */}
                 <LinearGradient

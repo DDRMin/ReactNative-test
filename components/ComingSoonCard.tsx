@@ -3,10 +3,11 @@ import { AnimationConfig, BlurIntensity, Colors } from '@/theme/constants';
 import { Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo, useEffect, useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -26,7 +27,7 @@ interface ComingSoonCardProps {
  * - Enhanced glass morphism
  * - Entrance animation
  */
-const ComingSoonCard = ({ movie, genres }: ComingSoonCardProps) => {
+const ComingSoonCard = memo(({ movie, genres }: ComingSoonCardProps) => {
     const router = useRouter();
     const imageUrl = getImageUrl(movie.poster_path);
     const genreText = movie.genre_ids?.map(id => genres?.[id]).filter(Boolean).slice(0, 1).join(' • ');
@@ -92,7 +93,9 @@ const ComingSoonCard = ({ movie, genres }: ComingSoonCardProps) => {
                     <Image
                         source={{ uri: imageUrl || '' }}
                         style={styles.poster}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
                     />
 
                     <View style={styles.content}>
@@ -125,7 +128,7 @@ const ComingSoonCard = ({ movie, genres }: ComingSoonCardProps) => {
             </Animated.View>
         </TouchableOpacity>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

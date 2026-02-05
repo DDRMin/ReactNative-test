@@ -3,10 +3,11 @@ import { Colors, Shadows } from '@/theme/constants';
 import { Movie } from '@/types/movie';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { memo, useCallback } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -77,7 +78,9 @@ const MovieCard = memo(({
                 <Image
                     source={{ uri: imageUrl || '' }}
                     style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
                 />
 
                 {/* Gradient overlay */}

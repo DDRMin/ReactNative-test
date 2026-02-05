@@ -4,7 +4,6 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Animated,
     Dimensions,
     Modal,
     StatusBar,
@@ -14,6 +13,13 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+import Animated, {
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming
+} from 'react-native-reanimated';
 import YoutubePlayer from 'react-native-youtube-iframe';
 
 interface TrailerModalProps {
@@ -23,49 +29,33 @@ interface TrailerModalProps {
     movieTitle?: string;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 0.5625; // 16:9 aspect ratio
 
 const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalProps) => {
     const [playing, setPlaying] = useState(true);
-    const fadeAnim = useState(new Animated.Value(0))[0];
-    const scaleAnim = useState(new Animated.Value(0.9))[0];
+
+    // Reanimated shared values (runs on UI thread)
+    const fadeAnim = useSharedValue(0);
+    const scaleAnim = useSharedValue(0.9);
 
     useEffect(() => {
         if (visible) {
             setPlaying(true);
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(scaleAnim, {
-                    toValue: 1,
-                    friction: 8,
-                    tension: 40,
-                    useNativeDriver: true,
-                }),
-            ]).start();
+            fadeAnim.value = withTiming(1, { duration: 300 });
+            scaleAnim.value = withSpring(1, { damping: 15, stiffness: 150 });
         }
     }, [visible]);
 
     const handleClose = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: true,
-            }),
-            Animated.timing(scaleAnim, {
-                toValue: 0.9,
-                duration: 200,
-                useNativeDriver: true,
-            }),
-        ]).start(() => {
-            setPlaying(false);
-            onClose();
+
+        fadeAnim.value = withTiming(0, { duration: 200 });
+        scaleAnim.value = withTiming(0.9, { duration: 200 }, (finished) => {
+            if (finished) {
+                runOnJS(setPlaying)(false);
+                runOnJS(onClose)();
+            }
         });
     }, [onClose]);
 
@@ -75,6 +65,16 @@ const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalPro
             handleClose();
         }
     }, [handleClose]);
+
+    // Animated styles (computed on UI thread)
+    const backdropStyle = useAnimatedStyle(() => ({
+        opacity: fadeAnim.value,
+    }));
+
+    const cardStyle = useAnimatedStyle(() => ({
+        opacity: fadeAnim.value,
+        transform: [{ scale: scaleAnim.value }],
+    }));
 
     if (!videoId) return null;
 
@@ -90,7 +90,7 @@ const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalPro
 
             {/* Tappable backdrop to close */}
             <TouchableWithoutFeedback onPress={handleClose}>
-                <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+                <Animated.View style={[styles.backdrop, backdropStyle]}>
                     <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
                 </Animated.View>
             </TouchableWithoutFeedback>
@@ -99,20 +99,12 @@ const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalPro
             <View style={styles.contentContainer} pointerEvents="box-none">
 
                 {/* Close hint at top */}
-                <Animated.View style={[styles.hintContainer, { opacity: fadeAnim }]}>
+                <Animated.View style={[styles.hintContainer, backdropStyle]}>
                     <Text style={styles.hintText}>Tap outside to close</Text>
                 </Animated.View>
 
                 {/* Video Player Card */}
-                <Animated.View
-                    style={[
-                        styles.videoCard,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ scale: scaleAnim }],
-                        }
-                    ]}
-                >
+                <Animated.View style={[styles.videoCard, cardStyle]}>
                     {/* Video Header */}
                     <View style={styles.videoHeader}>
                         <View style={styles.headerLeft}>
@@ -171,7 +163,7 @@ const TrailerModal = ({ visible, videoId, onClose, movieTitle }: TrailerModalPro
                 </Animated.View>
 
                 {/* Swipe down hint */}
-                <Animated.View style={[styles.bottomHint, { opacity: fadeAnim }]}>
+                <Animated.View style={[styles.bottomHint, backdropStyle]}>
                     <View style={styles.swipeIndicator} />
                 </Animated.View>
             </View>

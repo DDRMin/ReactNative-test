@@ -251,6 +251,10 @@ export default function Search() {
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            initialNumToRender={6}
           />
         ) : (
           <View style={styles.emptyContainer}>
