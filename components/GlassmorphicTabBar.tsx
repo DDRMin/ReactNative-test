@@ -175,16 +175,8 @@ const TabButton = ({ route, index, isFocused, navigation }: TabButtonProps) => {
             canPreventDefault: true,
         });
 
-        // Haptics with error handling - some Android devices have issues
-        try {
-            // Use selection for more reliable feedback on Android
-            Haptics.selectionAsync().catch(() => {
-                // Fallback to impact if selection fails
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
-            });
-        } catch (e) {
-            // Silently ignore haptic failures
-        }
+        // Trigger haptic feedback
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);
