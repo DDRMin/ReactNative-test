@@ -4,13 +4,14 @@ import { useSavedMovies } from '@/contexts/SavedMoviesContext';
 import { getImageUrl, getMovieCredits, getMovieDetails, getMovieVideos } from '@/services/api';
 import { AnimationConfig, BlurIntensity, Colors, Gradients, Shadows } from '@/theme/constants';
 import { Cast, Movie, Video } from '@/types/movie';
-import { hapticMedium, hapticWarning } from '@/utils/haptics';
+import { hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
     interpolate,
     useAnimatedScrollHandler,
@@ -42,6 +43,7 @@ const MovieDetails = () => {
     const contentTranslateY = useSharedValue(40);
     const playButtonGlow = useSharedValue(0.3);
     const heartScale = useSharedValue(1);
+    const toastOpacity = useSharedValue(0);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -95,6 +97,24 @@ const MovieDetails = () => {
         }
     };
 
+    const handleCopyTitle = async () => {
+        if (!movie?.title) return;
+        try {
+            await Clipboard.setStringAsync(movie.title);
+            hapticSuccess();
+
+            // Only show custom toast on iOS since Android 13+ shows a system toast
+            if (Platform.OS === 'ios') {
+                toastOpacity.value = withSequence(
+                    withTiming(1, { duration: 200 }),
+                    withDelay(2000, withTiming(0, { duration: 300 }))
+                );
+            }
+        } catch (error) {
+            console.error("Failed to copy:", error);
+        }
+    };
+
     const handleWatchTrailer = () => {
         if (trailer) {
             setModalVisible(true);
@@ -125,6 +145,15 @@ const MovieDetails = () => {
 
     const heartStyle = useAnimatedStyle(() => ({
         transform: [{ scale: heartScale.value }],
+    }));
+
+    const toastStyle = useAnimatedStyle(() => ({
+        opacity: toastOpacity.value,
+        transform: [
+            { translateY: interpolate(toastOpacity.value, [0, 1], [20, 0]) },
+            { scale: interpolate(toastOpacity.value, [0, 1], [0.9, 1]) }
+        ],
+        pointerEvents: toastOpacity.value === 0 ? 'none' : 'auto',
     }));
 
     if (loading) {
@@ -223,7 +252,12 @@ const MovieDetails = () => {
                             style={styles.poster}
                         />
                         <View style={styles.infoContainer}>
-                            <Text style={styles.title}>{movie.title}</Text>
+                            <TouchableOpacity
+                                onLongPress={handleCopyTitle}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.title}>{movie.title}</Text>
+                            </TouchableOpacity>
                             {movie.tagline && (
                                 <Text style={styles.tagline}>{movie.tagline}</Text>
                             )}
@@ -324,6 +358,15 @@ const MovieDetails = () => {
                     </View>
                 </Animated.View>
             </AnimatedScrollView>
+
+            {/* Toast Notification */}
+            <Animated.View style={[styles.toast, toastStyle]}>
+                <BlurView intensity={BlurIntensity.strong} tint="dark" style={StyleSheet.absoluteFill} />
+                <View style={styles.toastContent}>
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.accent.emerald} />
+                    <Text style={styles.toastText}>Copied to clipboard</Text>
+                </View>
+            </Animated.View>
         </View>
     );
 };
@@ -552,6 +595,29 @@ const styles = StyleSheet.create({
     heartButtonSaved: {
         borderColor: Colors.accent.rose,
         ...Shadows.glow.rose,
+    },
+    toast: {
+        position: 'absolute',
+        bottom: 40,
+        alignSelf: 'center',
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: Colors.glass.border,
+        ...Shadows.card,
+        zIndex: 100,
+    },
+    toastContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 8,
+    },
+    toastText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.text.primary,
     },
 });
 

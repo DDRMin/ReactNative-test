@@ -46,6 +46,7 @@ export default function Saved() {
 
     // Heart badge pulse
     heartScale.value = withSpring(1, AnimationConfig.spring.gentle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const renderMovie = useCallback(({ item, index }: { item: Movie; index: number }) => (
@@ -197,6 +198,7 @@ const FloatingHeart = ({
     // Repeat animation
     const interval = setInterval(startAnimation, duration + delay + 500);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -235,6 +237,7 @@ const EmptyStateWithHearts = () => {
       -1,
       true
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const containerStyle = useAnimatedStyle(() => ({
