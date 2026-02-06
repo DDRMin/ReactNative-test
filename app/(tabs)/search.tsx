@@ -124,15 +124,11 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reset search when leaving the screen
+  // Cancel any pending requests when leaving the screen
   useFocusEffect(
     useCallback(() => {
       return () => {
-        setQuery('');
-        setDebouncedQuery('');
-        setFilters(DEFAULT_FILTERS);
-        setPage(1);
-        // Cancel any pending requests
+        // Cancel any pending requests but keep search results
         abortControllerRef.current?.abort();
       };
     }, [])
